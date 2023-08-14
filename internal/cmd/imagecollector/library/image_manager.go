@@ -5,9 +5,9 @@ import (
 	"os"
 	"strings"
 
+	"github.com/SDA-SE/sdase-image-collector/internal/cmd/imagecollector/model"
 	"github.com/rs/zerolog/log"
 	v1 "k8s.io/api/core/v1"
-	"sdase.org/collector/internal/cmd/imagecollector/model"
 )
 
 type ImageManager struct {

@@ -6,13 +6,13 @@ import (
 	"os"
 	"sort"
 
-	"sdase.org/collector/internal/cmd/imagecollector/library"
+	"github.com/SDA-SE/sdase-image-collector/internal/cmd/imagecollector/library"
 
+	"github.com/SDA-SE/sdase-image-collector/internal/cmd/imagecollector/model"
+	"github.com/SDA-SE/sdase-image-collector/internal/cmd/imagecollector/storage"
 	"github.com/rs/zerolog/log"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sdase.org/collector/internal/cmd/imagecollector/model"
-	"sdase.org/collector/internal/cmd/imagecollector/storage"
 )
 
 var imageCollectorDefaults model.ImageCollectorDefaults

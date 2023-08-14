@@ -5,11 +5,11 @@ import (
 
 	"github.com/rs/zerolog/log"
 
+	"github.com/SDA-SE/sdase-image-collector/internal/cmd"
 	"k8s.io/client-go/kubernetes"
 	"k8s.io/client-go/rest"
 	"k8s.io/client-go/tools/clientcmd"
 	"k8s.io/client-go/tools/clientcmd/api"
-	"sdase.org/collector/internal/cmd"
 )
 
 func CreateClientOrDie(kubeconfig, kubecontext, masterURL string) *kubernetes.Clientset {

@@ -4,7 +4,7 @@ import (
 	"strings"
 	"testing"
 
-	"sdase.org/collector/internal/cmd/imagecollector/model"
+	"github.com/SDA-SE/sdase-image-collector/internal/cmd/imagecollector/model"
 )
 
 func TestPrepareImageNameForPullableRemoval(t *testing.T) {

@@ -2,10 +2,10 @@ package library
 
 import (
 	"encoding/json"
+	"github.com/SDA-SE/sdase-image-collector/internal/cmd/imagecollector/model"
 	"github.com/golang-jwt/jwt/v4"
 	"net/http"
 	"os"
-	"sdase.org/collector/internal/cmd/imagecollector/model"
 	"strconv"
 	"time"
 )

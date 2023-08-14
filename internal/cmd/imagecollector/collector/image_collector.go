@@ -11,16 +11,16 @@ import (
 	"strings"
 	"time"
 
-	"sdase.org/collector/internal/cmd/imagecollector/library"
-	"sdase.org/collector/internal/cmd/imagecollector/storage"
+	"github.com/SDA-SE/sdase-image-collector/internal/cmd/imagecollector/library"
+	"github.com/SDA-SE/sdase-image-collector/internal/cmd/imagecollector/storage"
 
 	"github.com/jinzhu/copier"
 
+	"github.com/SDA-SE/sdase-image-collector/internal/cmd/imagecollector/model"
 	"github.com/go-playground/validator/v10"
 	"github.com/rs/zerolog/log"
 	v1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"sdase.org/collector/internal/cmd/imagecollector/model"
 )
 
 var validate *validator.Validate
