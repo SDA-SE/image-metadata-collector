@@ -374,29 +374,27 @@ func storeAndUploadFiles(collectorEntries []model.CollectorEntry, imageCollector
 	return nil
 }
 
-func Run(isImageCollector bool, imageCollectorDefaults model.ImageCollectorDefaults, s3ParameterEntry model.S3parameterEntry, gitParameterEntry model.GitParameterEntry) {
-	if isImageCollector {
-		log := log.With().
-			Str("component", "image-collector").Logger()
-		log.Info().Str("environmentName", imageCollectorDefaults.Environment).Int64("scanInterval", imageCollectorDefaults.ScanIntervalInSeconds).Msg("imageCollector is enabled")
-		for {
-			err := clusterImageScannerCollectorRun(imageCollectorDefaults, s3ParameterEntry, gitParameterEntry)
-			if err != nil {
-				log.Fatal().Stack().Err(err).Msg("Stopping due to error in clusterImageScannerCollectorRun")
-				return
-			}
-			if err := ClusterImageScannerDescriptionCollectorRun(imageCollectorDefaults); err != nil {
-				log.Fatal().Stack().Err(err).Msg("Stopping due to error in ClusterImageScannerDescriptionCollectorRun")
-				return
-			}
-
-			if imageCollectorDefaults.ScanIntervalInSeconds == int64(-1) {
-				log.Info().Msg("ScanIntervalInSeconds is -1, stopping collector")
-				return
-			}
-			log.Info().Str("environmentName", imageCollectorDefaults.Environment).Int64("scanInterval", imageCollectorDefaults.ScanIntervalInSeconds).Msg("sleeping")
-			time.Sleep(time.Duration(imageCollectorDefaults.ScanIntervalInSeconds) * time.Second)
+func Run(imageCollectorDefaults model.ImageCollectorDefaults, s3ParameterEntry model.S3parameterEntry, gitParameterEntry model.GitParameterEntry) {
+	log := log.With().
+		Str("component", "image-collector").Logger()
+	log.Info().Str("environmentName", imageCollectorDefaults.Environment).Int64("scanInterval", imageCollectorDefaults.ScanIntervalInSeconds).Msg("imageCollector is enabled")
+	for {
+		err := clusterImageScannerCollectorRun(imageCollectorDefaults, s3ParameterEntry, gitParameterEntry)
+		if err != nil {
+			log.Fatal().Stack().Err(err).Msg("Stopping due to error in clusterImageScannerCollectorRun")
+			return
 		}
+		if err := ClusterImageScannerDescriptionCollectorRun(imageCollectorDefaults); err != nil {
+			log.Fatal().Stack().Err(err).Msg("Stopping due to error in ClusterImageScannerDescriptionCollectorRun")
+			return
+		}
+
+		if imageCollectorDefaults.ScanIntervalInSeconds == int64(-1) {
+			log.Info().Msg("ScanIntervalInSeconds is -1, stopping collector")
+			return
+		}
+		log.Info().Str("environmentName", imageCollectorDefaults.Environment).Int64("scanInterval", imageCollectorDefaults.ScanIntervalInSeconds).Msg("sleeping")
+		time.Sleep(time.Duration(imageCollectorDefaults.ScanIntervalInSeconds) * time.Second)
 	}
 }
 

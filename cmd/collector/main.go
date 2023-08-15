@@ -25,7 +25,6 @@ func main() {
 
 var kubeconfig, kubecontext, masterURL, defaultTeamValue, defaultProductValue, product, environmentName string
 var scanIntervalInSecondsVersionCollector int64
-var isVersionCollector, isImageCollector bool
 var s3ParameterEntry = model.S3parameterEntry{}
 var gitParameterEntry = model.GitParameterEntry{}
 var imageCollectorDefaults = model.ImageCollectorDefaults{}
@@ -74,7 +73,6 @@ func newCommand() *cobra.Command {
 	c.PersistentFlags().StringVar(&masterURL, "master", "", "URL of the API server")
 	cmd.CheckError(c.MarkPersistentFlagRequired("cluster-name"))
 
-	c.PersistentFlags().BoolVar(&isImageCollector, "is-imagecollector", true, "Enable the image collector")
 	c.PersistentFlags().Int64Var(&imageCollectorDefaults.ScanIntervalInSeconds, "image-collector-scan-interval", 3600, "Rescan intervalInSeconds in seconds for image collector")
 	c.PersistentFlags().StringVar(&imageCollectorDefaults.ConfigBasePath, "image-collector-config-basepath", "/config", "Configuration folder for the image collector")
 	c.PersistentFlags().BoolVar(&imageCollectorDefaults.Skip, "image-collector-default-skip", false, "Images in namespaces are skipped without annotations/labels")
@@ -111,7 +109,7 @@ func run() {
 	client := kubeclient.CreateClientOrDie(kubeconfig, kubecontext, masterURL)
 	imageCollectorDefaults.Client = client
 	imageCollectorDefaults.Environment = environmentName
-	go collector.Run(isImageCollector, imageCollectorDefaults, s3ParameterEntry, gitParameterEntry)
+	go collector.Run(imageCollectorDefaults, s3ParameterEntry, gitParameterEntry)
 
 	// Expose the registered metrics via HTTP.
 	http.Handle("/metrics", promhttp.HandlerFor(
