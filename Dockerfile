@@ -1,4 +1,4 @@
-FROM --platform=linux/amd64 golang:1.19 as build-env
+FROM --platform=linux/amd64 golang:1.21 as build-env
 
 WORKDIR /go/src/app
 ADD . /go/src/app
