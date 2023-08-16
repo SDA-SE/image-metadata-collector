@@ -49,27 +49,24 @@ const configBasePath = "/configs"
 
 var labels model.Label
 
-func clusterImageScannerCollectorRun(imageCollectorDefaults model.ImageCollectorDefaults, s3ParameterEntry model.S3parameterEntry, gitParameterEntry model.GitParameterEntry) error {
+func clusterImageScannerCollectorRun(imageCollectorDefaults model.ImageCollectorDefaults, storage storage.Storager) error {
 	// TODO Verify that SI is not using IMAGE_SKIP_POSITIVE_LIST
 	// TODO Verify that SI is not using IMAGE_SKIP_NEGATIVE_LIST
-	storage.Init(s3ParameterEntry)
 
 	err := setLabels()
 	if err != nil {
 		return err
 	}
-	err = storage.InitGit(gitParameterEntry)
 
-	if err != nil {
-		return err
-	}
 	imageManager, err := library.InitImageNegativeList(configBasePath)
 	if err != nil {
 		return err
 	}
+
 	if err := library.InitRegistryRename(configBasePath); err != nil {
 		return err
 	}
+
 	collectorEntries := []model.CollectorEntry{}
 	namespaces, err := imageCollectorDefaults.Client.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
 	if err != nil {
@@ -116,11 +113,12 @@ func clusterImageScannerCollectorRun(imageCollectorDefaults model.ImageCollector
 			collectorEntries = append(collectorEntries, entry)
 		}
 	}
-	if err = storeAndUploadFiles(collectorEntries, imageCollectorDefaults); err != nil {
+	if err = storeAndUploadFiles(collectorEntries, imageCollectorDefaults, storage); err != nil {
 		return err
 	}
 	return nil
 }
+
 func getContainerSpecs(pod v1.Pod, collectorEntryContainers map[string]model.CollectorEntry) map[string]model.CollectorEntry {
 	for _, container := range pod.Spec.Containers {
 		if container.SecurityContext == nil {
@@ -336,6 +334,7 @@ func setCollectorEntryFromLabelsAndAnnotations(collectorEntry *model.CollectorEn
 	library.SetStringFromAnnotationAndLabel(annotateabbleAndLabelableObject, engagementTagsAnnotationName, &engagementTags)
 	jTags, _ := json.MarshalIndent(defaultEntryFromEnv.EngagementTags, "", "\t")
 	log.Info().Bytes("engagementTags ", jTags).Msg("JSON")
+
 	if engagementTags != "" && engagementTags != "null" {
 		engagementTagsAsList := strings.Split(engagementTags, ",")
 		collectorEntry.EngagementTags = append(collectorEntry.EngagementTags, engagementTagsAsList...)
@@ -349,42 +348,39 @@ func getEngagementTagsAnnotationName() string {
 	return engagementTagsAnnotationName
 }
 
-func storeAndUploadFiles(collectorEntries []model.CollectorEntry, imageCollectorDefaults model.ImageCollectorDefaults) error {
+func storeAndUploadFiles(collectorEntries []model.CollectorEntry, imageCollectorDefaults model.ImageCollectorDefaults, storage storage.Storager) error {
 	filename := imageCollectorDefaults.Environment + "-output.json"
 	sort.Slice(collectorEntries, func(i, j int) bool {
 		return collectorEntries[i].Image < collectorEntries[j].Image
 	})
+
 	dataCollectionEntries, err := json.MarshalIndent(collectorEntries, "", "\t")
+
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("Could not marshal json collectorEntries")
 		return err
 	}
-	if imageCollectorDefaults.IsSaveFiles {
-		saveFilesPath := "/tmp"
-		filePath := saveFilesPath + "/" + filename
-		library.SaveFile(filePath, []byte(dataCollectionEntries))
-	}
+
 	if err = storage.Upload([]byte(dataCollectionEntries), filename, imageCollectorDefaults.Environment); err != nil {
 		return err
 	}
 
-	if err = storage.GitUpload([]byte(dataCollectionEntries), filename); err != nil {
-		return err
-	}
 	return nil
 }
 
-func Run(imageCollectorDefaults model.ImageCollectorDefaults, s3ParameterEntry model.S3parameterEntry, gitParameterEntry model.GitParameterEntry) {
-	log := log.With().
-		Str("component", "image-collector").Logger()
+func Run(imageCollectorDefaults model.ImageCollectorDefaults, storage storage.Storager) {
+	log := log.With().Str("component", "image-collector").Logger()
 	log.Info().Str("environmentName", imageCollectorDefaults.Environment).Int64("scanInterval", imageCollectorDefaults.ScanIntervalInSeconds).Msg("imageCollector is enabled")
+
 	for {
-		err := clusterImageScannerCollectorRun(imageCollectorDefaults, s3ParameterEntry, gitParameterEntry)
+		err := clusterImageScannerCollectorRun(imageCollectorDefaults, storage)
+
 		if err != nil {
 			log.Fatal().Stack().Err(err).Msg("Stopping due to error in clusterImageScannerCollectorRun")
 			return
 		}
-		if err := ClusterImageScannerDescriptionCollectorRun(imageCollectorDefaults); err != nil {
+
+		if err := ClusterImageScannerDescriptionCollectorRun(imageCollectorDefaults, storage); err != nil {
 			log.Fatal().Stack().Err(err).Msg("Stopping due to error in ClusterImageScannerDescriptionCollectorRun")
 			return
 		}
@@ -393,6 +389,7 @@ func Run(imageCollectorDefaults model.ImageCollectorDefaults, s3ParameterEntry m
 			log.Info().Msg("ScanIntervalInSeconds is -1, stopping collector")
 			return
 		}
+
 		log.Info().Str("environmentName", imageCollectorDefaults.Environment).Int64("scanInterval", imageCollectorDefaults.ScanIntervalInSeconds).Msg("sleeping")
 		time.Sleep(time.Duration(imageCollectorDefaults.ScanIntervalInSeconds) * time.Second)
 	}

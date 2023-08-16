@@ -2,7 +2,6 @@ package library
 
 import (
 	"encoding/json"
-	"github.com/SDA-SE/sdase-image-collector/internal/cmd/imagecollector/model"
 	"github.com/golang-jwt/jwt/v4"
 	"net/http"
 	"os"
@@ -28,8 +27,8 @@ type InstallationAuthResponse struct {
 	RepositorySelection string `json:"repository_selection"`
 }
 
-func GetGithubToken(entry model.GitParameterEntry) (string, error) {
-	keyBytes, err := os.ReadFile(entry.PrivateKeyFile)
+func GetGithubToken(privateKeyFile string, githubAppId, githubInstallationId int64) (string, error) {
+	keyBytes, err := os.ReadFile(privateKeyFile)
 	if err != nil {
 		return "", err
 	}
@@ -45,7 +44,7 @@ func GetGithubToken(entry model.GitParameterEntry) (string, error) {
 		&jwt.StandardClaims{
 			IssuedAt:  time.Now().Unix(),
 			ExpiresAt: time.Now().Add(time.Minute * 9).Unix(),
-			Issuer:    strconv.FormatInt(entry.GithubAppId, 10),
+			Issuer:    strconv.FormatInt(githubAppId, 10),
 		},
 	}
 
@@ -55,7 +54,7 @@ func GetGithubToken(entry model.GitParameterEntry) (string, error) {
 	}
 
 	client := &http.Client{}
-	url := "https://api.github.com/app/installations/" + strconv.FormatInt(entry.GithubInstallationId, 10) + "/access_tokens"
+	url := "https://api.github.com/app/installations/" + strconv.FormatInt(githubInstallationId, 10) + "/access_tokens"
 	req, _ := http.NewRequest("POST", url, nil)
 	req.Header.Set("Accept", "application/vnd.github.machine-man-preview+json")
 	req.Header.Set("Authorization", "Bearer "+tokenString)

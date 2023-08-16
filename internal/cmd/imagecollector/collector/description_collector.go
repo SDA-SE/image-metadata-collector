@@ -17,7 +17,7 @@ import (
 
 var imageCollectorDefaults model.ImageCollectorDefaults
 
-func ClusterImageScannerDescriptionCollectorRun(givenImageCollectorDefaults model.ImageCollectorDefaults) error {
+func ClusterImageScannerDescriptionCollectorRun(givenImageCollectorDefaults model.ImageCollectorDefaults, storage storage.Storager) error {
 	imageCollectorDefaults = givenImageCollectorDefaults
 	descriptionEntries := []model.DescriptionEntry{}
 	namespaces, err := imageCollectorDefaults.Client.CoreV1().Namespaces().List(context.Background(), metav1.ListOptions{})
@@ -30,7 +30,7 @@ func ClusterImageScannerDescriptionCollectorRun(givenImageCollectorDefaults mode
 		log.Info().Str("namespace", namespace.GetName()).Msg("In namespace")
 		descriptionEntries = append(descriptionEntries, getDescriptionEntry(&namespace))
 	}
-	storeDescriptionFiles(descriptionEntries)
+	storeDescriptionFiles(descriptionEntries, storage)
 	return nil
 }
 
@@ -50,7 +50,7 @@ func getDescriptionEntry(namespace *v1.Namespace) model.DescriptionEntry {
 	return descriptionEntry
 }
 
-func storeDescriptionFiles(descriptionEntries []model.DescriptionEntry) {
+func storeDescriptionFiles(descriptionEntries []model.DescriptionEntry, storage storage.Storager) {
 	saveFilesPath := "/tmp"
 	sort.Slice(descriptionEntries, func(i, j int) bool {
 		return descriptionEntries[i].Namespace < descriptionEntries[j].Namespace
@@ -63,8 +63,9 @@ func storeDescriptionFiles(descriptionEntries []model.DescriptionEntry) {
 	if imageCollectorDefaults.IsSaveFiles {
 		library.SaveFile(saveFilesPath+"/service-description.json", []byte(dataDescriptionEntries))
 	}
+
 	storage.Upload([]byte(dataDescriptionEntries), saveFilesPath+"/"+imageCollectorDefaults.Environment+"-service-description.json", imageCollectorDefaults.Environment)
-	storage.GitUpload([]byte(dataDescriptionEntries), imageCollectorDefaults.Environment+"service-description.json")
+
 	sort.Slice(descriptionEntries, func(i, j int) bool {
 		return descriptionEntries[i].Namespace < descriptionEntries[j].Namespace
 	})
@@ -74,9 +75,6 @@ func storeDescriptionFiles(descriptionEntries []model.DescriptionEntry) {
 			missingDescriptionText += entry.Namespace + "\n"
 		}
 	}
-	if imageCollectorDefaults.IsSaveFiles {
-		library.SaveFile(saveFilesPath+"/"+imageCollectorDefaults.Environment+"/missing-service-description.txt", []byte(missingDescriptionText))
-	}
+
 	storage.Upload([]byte(missingDescriptionText), saveFilesPath+"/"+imageCollectorDefaults.Environment+"-missing-service-description.txt", imageCollectorDefaults.Environment)
-	storage.GitUpload([]byte(missingDescriptionText), imageCollectorDefaults.Environment+"-missing-service-description.txt")
 }

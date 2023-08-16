@@ -20,18 +20,19 @@ spec:
           command: [ "/app" ]
           args: [
             "--cluster-name", "lord-of-the-rings",
-            "--is-versioncollector", "false",
-            "--is-imagecollector", "true",
-            "--image-collector-scan-interval", "5",
-            "--image-collector-s3-force-path-style", "true",
-            "--image-collector-s3-endpoint", "minio-hl:9000",
-            "--image-collector-s3-bucket", "local",
-            "--image-collector-s3-insecure", "true",
-            "--image-collector-s3-access-key", "testtesttest",
-            "--image-collector-s3-secret-key", "testtesttest",
-            "--image-collector-s3-region", "eu-west-1",
+            "--scan-interval", "5",
+            "--storage", "s3",
+            "--s3-endpoint", "minio-hl:9000",
+            "--s3-bucket", "local",
+            "--s3-insecure", "true",
+            "--s3-region", "eu-west-1",
           ]
           imagePullPolicy: Always
+          env:
+            - name: AWS_ACCESS_KEY_ID
+              value: "testtesttest"
+            - name: AWS_SECRET_ACCESS_KEY
+              value: "testtesttest"
           resources:
             limits:
               #cpu: 400m no limit during test
