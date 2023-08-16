@@ -5,8 +5,8 @@ import (
 	"os"
 	"strings"
 
+	"github.com/SDA-SE/sdase-image-collector/internal/cmd/imagecollector/model"
 	"github.com/rs/zerolog/log"
-	"sdase.org/collector/internal/cmd/imagecollector/model"
 )
 
 var registryReplacements []model.RegistyReplacment

@@ -3,6 +3,7 @@ package storage
 import (
 	"bytes"
 	"fmt"
+	"github.com/SDA-SE/sdase-image-collector/internal/cmd/imagecollector/model"
 	"github.com/aws/aws-sdk-go/aws"
 	"github.com/aws/aws-sdk-go/aws/credentials"
 	"github.com/aws/aws-sdk-go/aws/credentials/stscreds"
@@ -15,7 +16,6 @@ import (
 	"net/http"
 	"os"
 	"path"
-	"sdase.org/collector/internal/cmd/imagecollector/model"
 	"strconv"
 )
 

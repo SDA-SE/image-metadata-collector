@@ -4,15 +4,15 @@ import (
 	"flag"
 	"net/http"
 
+	"github.com/SDA-SE/sdase-image-collector/internal/cmd"
+	"github.com/SDA-SE/sdase-image-collector/internal/cmd/imagecollector/collector"
+	"github.com/SDA-SE/sdase-image-collector/internal/cmd/imagecollector/model"
+	"github.com/SDA-SE/sdase-image-collector/internal/pkg/kubeclient"
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
-	"sdase.org/collector/internal/cmd"
-	"sdase.org/collector/internal/cmd/imagecollector/collector"
-	"sdase.org/collector/internal/cmd/imagecollector/model"
-	"sdase.org/collector/internal/pkg/kubeclient"
 )
 
 func main() {
