@@ -4,10 +4,10 @@ package storage
 // use the lib
 
 import (
+	"github.com/SDA-SE/sdase-image-collector/internal/cmd/imagecollector/library"
+	"github.com/SDA-SE/sdase-image-collector/internal/cmd/imagecollector/model"
 	"github.com/rs/zerolog/log"
 	"os"
-	"sdase.org/collector/internal/cmd/imagecollector/library"
-	"sdase.org/collector/internal/cmd/imagecollector/model"
 	"time"
 
 	git "github.com/go-git/go-git/v5"
