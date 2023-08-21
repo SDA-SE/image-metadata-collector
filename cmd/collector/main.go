@@ -2,7 +2,9 @@ package main
 
 import (
 	"flag"
+	"fmt"
 	"net/http"
+	"strings"
 
 	"github.com/SDA-SE/sdase-image-collector/internal/cmd"
 	"github.com/SDA-SE/sdase-image-collector/internal/cmd/imagecollector/collector"
@@ -15,7 +17,17 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
+	"github.com/spf13/pflag"
+	"github.com/spf13/viper"
 )
+
+const appName = "collector"
+const replaceHyphenWithCamelCase = false
+
+var kubeconfig, kubecontext, masterURL, defaultTeamValue, defaultProductValue, product, environmentName string
+var scanIntervalInSecondsVersionCollector int64
+var imageCollectorDefaults = model.ImageCollectorDefaults{}
+var storageCfg = storage.StorageConfig{}
 
 func main() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
@@ -25,17 +37,9 @@ func main() {
 	cmd.CheckError(err)
 }
 
-var kubeconfig, kubecontext, masterURL, defaultTeamValue, defaultProductValue, product, environmentName string
-var scanIntervalInSecondsVersionCollector int64
-
-var imageCollectorDefaults = model.ImageCollectorDefaults{}
-
-var storageCfg = storage.StorageConfig{}
-
 func newCommand() *cobra.Command {
-
 	c := &cobra.Command{
-		Use:   "collector",
+		Use:   appName,
 		Short: "Collect images, apps, and their versions.",
 		Long: `collector is a tool that will scan 'Deployment's 'StatefulSet's and 'DaemonSet's 'Namespace's, and 'Pod's for version and image information and push these as metrics to Prometheus.
 			Environment variables for image-collector:
@@ -62,6 +66,9 @@ func newCommand() *cobra.Command {
 				ANNOTATION_NAME_NAMESPACE_FILTER
 				ANNOTATION_NAME_NAMESPACE_FILTER_NEGATED
 `,
+		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
+			return initializeConfig(cmd)
+		},
 		Run: func(cmd *cobra.Command, args []string) {
 			run()
 		},
@@ -84,17 +91,17 @@ func newCommand() *cobra.Command {
 
 	c.PersistentFlags().StringVar(&storageCfg.S3bucketName, "s3-bucket", "", "S3 Bucket to store image collector results")
 	c.PersistentFlags().StringVar(&storageCfg.S3endpoint, "s3-endpoint", "", "S3 Endpoint (e.g. minio)")
-	c.PersistentFlags().StringVar(&storageCfg.S3region, "s3-region", "eu-west-1", "S3 region")
+	c.PersistentFlags().StringVar(&storageCfg.S3region, "s3-region", storageCfg.S3region, "S3 region")
 	c.PersistentFlags().BoolVar(&storageCfg.S3insecure, "s3-insecure", false, "Insecure bucket connection")
 
 	c.PersistentFlags().StringVar(&storageCfg.FsBaseDir, "fs-base-dir", "", "Directory to write the output to, if empty use stdout")
 
 	c.PersistentFlags().StringVar(&storageCfg.GitPassword, "git-password", "", "Git Password to connect")
-	c.PersistentFlags().StringVar(&storageCfg.GitUrl, "git-url", "", "Git URL to connect, use ")
-	c.PersistentFlags().StringVar(&storageCfg.GitPrivateKeyFile, "git-private-key-file-path", "/home/nonroot/.ssh/id_rsa", "Path to the private ssh/github key file")
-	c.PersistentFlags().StringVar(&storageCfg.GitDirectory, "git-directory", "/tmp/git", "Directory to clone to")
-	c.PersistentFlags().Int64Var(&storageCfg.GithubAppId, "github-app-id", 0, "Github AppId")
-	c.PersistentFlags().Int64Var(&storageCfg.GithubInstallationId, "github-installation-id", 0, "Github InstallationId")
+	c.PersistentFlags().StringVar(&storageCfg.GitUrl, "git-url", storageCfg.GitUrl, "Git URL to connect, use ")
+	c.PersistentFlags().StringVar(&storageCfg.GitPrivateKeyFile, "git-private-key-file-path", storageCfg.GitPrivateKeyFile, "Path to the private ssh/github key file")
+	c.PersistentFlags().StringVar(&storageCfg.GitDirectory, "git-directory", storageCfg.GitDirectory, "Directory to clone to")
+	c.PersistentFlags().Int64Var(&storageCfg.GithubAppId, "github-app-id", storageCfg.GithubAppId, "Github AppId")
+	c.PersistentFlags().Int64Var(&storageCfg.GithubInstallationId, "github-installation-id", storageCfg.GithubInstallationId, "Github InstallationId")
 
 	var isDebug = false
 	c.PersistentFlags().BoolVar(&isDebug, "debug", false, "Set logging level to debug, default logging level is info")
@@ -105,6 +112,33 @@ func newCommand() *cobra.Command {
 
 	c.PersistentFlags().AddGoFlagSet(flag.CommandLine)
 	return c
+}
+
+// initializeConfig reads in ENV variables if set.
+func initializeConfig(cmd *cobra.Command) error {
+	v := viper.New()
+
+	v.SetEnvPrefix(appName)
+
+	// Environment variables can't have dashes in them, so bind them to their equivalent
+	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
+
+	v.AutomaticEnv()
+	bindFlags(cmd, v)
+
+	return nil
+}
+
+// bindFlags binds each cobra flag to its associated viper configuration
+func bindFlags(cmd *cobra.Command, v *viper.Viper) {
+	cmd.Flags().VisitAll(func(f *pflag.Flag) {
+		configName := f.Name
+
+		if !f.Changed && v.IsSet(configName) {
+			val := v.Get(configName)
+			cmd.Flags().Set(f.Name, fmt.Sprintf("%v", val))
+		}
+	})
 }
 
 func run() {
@@ -131,5 +165,4 @@ func run() {
 
 	err = http.ListenAndServe(":9402", nil)
 	log.Fatal().Stack().Err(err).Msg("Could not start listener for version collector")
-
 }
