@@ -8,7 +8,12 @@ import (
 	"github.com/SDA-SE/sdase-image-collector/internal/cmd/imagecollector/storage/s3"
 )
 
+// Storager is implemented by different storage options (e.g., S3, Git, Local FS)
+// It defines everything needed to store the collector output to the chosen
+// storage option.
 type Storager interface {
+	// Upload takes the content of the collector output, the filename, and the environment name
+	// of the scanned cluster and writes the content to the chosen storage option
 	Upload(content []byte, fileName, environmentName string) error
 }
 

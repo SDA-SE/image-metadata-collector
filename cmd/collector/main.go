@@ -21,7 +21,7 @@ import (
 	"github.com/spf13/viper"
 )
 
-const appName = "collector"
+const AppName = "collector"
 const replaceHyphenWithCamelCase = false
 
 var kubeconfig, kubecontext, masterURL, defaultTeamValue, defaultProductValue, product, environmentName string
@@ -39,7 +39,7 @@ func main() {
 
 func newCommand() *cobra.Command {
 	c := &cobra.Command{
-		Use:   appName,
+		Use:   AppName,
 		Short: "Collect images, apps, and their versions.",
 		Long: `collector is a tool that will scan 'Deployment's 'StatefulSet's and 'DaemonSet's 'Namespace's, and 'Pod's for version and image information and push these as metrics to Prometheus.
 			Environment variables for image-collector:
@@ -83,7 +83,6 @@ func newCommand() *cobra.Command {
 	cmd.CheckError(c.MarkPersistentFlagRequired("cluster-name"))
 
 	c.PersistentFlags().Int64Var(&imageCollectorDefaults.ScanIntervalInSeconds, "scan-interval", 3600, "Rescan intervalInSeconds in seconds for image collector")
-	c.PersistentFlags().StringVar(&imageCollectorDefaults.ConfigBasePath, "config-basepath", "/config", "Configuration folder for the image collector")
 	c.PersistentFlags().BoolVar(&imageCollectorDefaults.Skip, "default-skip", false, "Images in namespaces are skipped without annotations/labels")
 	c.PersistentFlags().BoolVar(&imageCollectorDefaults.IsSaveFiles, "save-files", false, "In addition to uploading the files to S3, store the files on the disk")
 
@@ -118,7 +117,7 @@ func newCommand() *cobra.Command {
 func initializeConfig(cmd *cobra.Command) error {
 	v := viper.New()
 
-	v.SetEnvPrefix(appName)
+	v.SetEnvPrefix(AppName)
 
 	// Environment variables can't have dashes in them, so bind them to their equivalent
 	v.SetEnvKeyReplacer(strings.NewReplacer("-", "_"))
