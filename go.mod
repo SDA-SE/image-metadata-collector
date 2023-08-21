@@ -7,6 +7,7 @@ require (
 	github.com/go-git/go-git/v5 v5.8.1
 	github.com/go-playground/validator/v10 v10.15.0
 	github.com/golang-jwt/jwt/v4 v4.5.0
+	github.com/golang-jwt/jwt/v5 v5.0.0
 	github.com/jinzhu/copier v0.3.5
 	github.com/prometheus/client_golang v1.16.0
 	github.com/rs/zerolog v1.30.0
