@@ -5,8 +5,8 @@ ADD . /go/src/app
 RUN go get -d -v ./...
 
 RUN CGO_ENABLED=0 go build -o /go/bin/app cmd/collector/main.go && \
-    go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.4.1 && \
-    cyclonedx-gomod mod -json=true -output /bom.json
+  go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.4.1 && \
+  cyclonedx-gomod mod -json=true -output /bom.json
 
 FROM gcr.io/distroless/static-debian11
 COPY --from=build-env /go/bin/app /

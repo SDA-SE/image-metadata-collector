@@ -10,5 +10,4 @@ metadata:
     app.kubernetes.io/name: "cluster-image-scanner"
     sdase.org/description: "Running of a sample application with vulnerabilities/misconfigurations insides"
     clusterscanner.sdase.org/negated_namespace_filter: "\\-pr\\-"
-  labels:
-    defectdojo.sdase.org/engagement-tags: "backend"
+    defectdojo.sdase.org/engagement-tags: "backend,test-1,test-2"
