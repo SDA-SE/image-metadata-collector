@@ -17,7 +17,7 @@ For each given security related issue with severity _high_ or _critical_ (based 
 # Supported versions and update policy
 
 Please be aware that only the most recent version will be subject of security patches.
-The [changelog](https://github.com/SDA-SE/sdase-version-collector/releases) provides information about feature and security related fixes like patches.
+The [changelog](https://github.com/SDA-SE/sdase-image-collector/releases) provides information about feature and security related fixes like patches.
 
 # Versioning
 
