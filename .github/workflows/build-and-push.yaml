@@ -17,7 +17,7 @@ jobs:
     steps:
       - name: Checkout branch
         uses: actions/checkout@v3
-      # TODO: Discuss testing strategy and change this step accordingly 
+      # TODO: Discuss testing strategy and change this step accordingly
       # e.g. Test in Docker Image, Kind Cluster, ...
       - name: Set up Go for Tests
         uses: actions/setup-go@v4

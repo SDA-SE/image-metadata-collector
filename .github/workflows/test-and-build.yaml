@@ -1,0 +1,35 @@
+name: Test, Build and Lint Go Package
+on:
+  push:
+    paths-ignore:
+      - 'test_actions/**'
+      - 'Dockerfile'
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@v3
+
+      - name: Set up Go for Tests
+        uses: actions/setup-go@v4
+        with:
+          go-version: 1.21
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build
+        run: go build ./...
+
+      - name: Mod Verify
+        run: go mod verify
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Lint
+        uses: golangci/golangci-lint-action@v3
+        with:
+          version: v1.54
