@@ -168,15 +168,25 @@ func run(cfg *config.Config) {
 
 	go func() {
 		for {
-			images, err := collector.Collect(collectorDefaults, annotationNames, k8client)
+			// Collect images from K8
+			k8Images, err := k8client.GetAllImages()
+			if err != nil {
+				log.Fatal().Stack().Err(err).Msg("Could not retrieve images from K8")
+			}
+
+			// Convert & Clean k8 images to collector images
+			images, err := collector.ConvertImages(k8Images, collectorDefaults, annotationNames)
 			if err != nil {
 				log.Fatal().Stack().Err(err).Msg("Could not collect images")
 			}
+
+			// Store images
 			err = collector.Store(images, collectorDefaults.Environment, storage)
 			if err != nil {
 				log.Fatal().Stack().Err(err).Msg("Could not store collected images")
 			}
 
+			// Wait for next scan
 			time.Sleep(cfg.ScanInterval)
 		}
 	}()

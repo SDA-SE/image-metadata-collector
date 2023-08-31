@@ -176,3 +176,19 @@ func (c *Client) GetImages(namespaces *[]Namespace) (*[]Image, error) {
 
 	return &images, nil
 }
+
+// GetAllImages retrieve all Images for all Namespacesk
+func (c *Client) GetAllImages() (*[]Image, error) {
+	namespaces, err := c.GetNamespaces()
+	if err != nil {
+		log.Fatal().Stack().Err(err).Msg("failed to get namespaces")
+		return nil, err
+	}
+	k8Images, err := c.GetImages(namespaces)
+	if err != nil {
+		log.Fatal().Stack().Err(err).Msg("failed to get images")
+		return nil, err
+	}
+
+	return k8Images, nil
+}

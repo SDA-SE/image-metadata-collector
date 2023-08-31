@@ -59,8 +59,11 @@ type CollectorImage struct {
 func convertK8ImageToCollectorImage(k8Image kubeclient.Image, defaults *CollectorImage, annotationNames *AnnotationNames) *CollectorImage {
 
 	tags := k8Image.Labels
-	maps.Copy(tags, k8Image.Annotations)
-	// fmt.Printf("%s -> tags=%s\n", k8Image.Image, tags)
+	if tags == nil {
+		tags = k8Image.Annotations
+	} else {
+		maps.Copy(tags, k8Image.Annotations)
+	}
 
 	collectorImage := &CollectorImage{
 		Namespace: k8Image.NamespaceName,
@@ -88,7 +91,7 @@ func convertK8ImageToCollectorImage(k8Image kubeclient.Image, defaults *Collecto
 		IsScanDependencyTrack:            GetOrDefaultBool(tags, annotationNames.Scans+"is-scan-dependency-track", defaults.IsScanDependencyTrack),
 		IsScanDistroless:                 GetOrDefaultBool(tags, annotationNames.Scans+"is-scan-distroless", defaults.IsScanDistroless),
 		IsScanLifetime:                   GetOrDefaultBool(tags, annotationNames.Scans+"is-scan-lifetime", defaults.IsScanLifetime),
-		IsScanMalware:                    GetOrDefaultBool(tags, annotationNames.Scans+"is-scan-maleware", defaults.IsScanMalware),
+		IsScanMalware:                    GetOrDefaultBool(tags, annotationNames.Scans+"is-scan-malware", defaults.IsScanMalware),
 		IsScanNewVersion:                 GetOrDefaultBool(tags, annotationNames.Scans+"is-scan-new-version", defaults.IsScanNewVersion),
 		IsScanRunAsRoot:                  GetOrDefaultBool(tags, annotationNames.Scans+"is-scan-runasroot", defaults.IsScanRunAsRoot),
 		IsPotentiallyRunningAsRoot:       GetOrDefaultBool(tags, annotationNames.Scans+"is-scan-potentially-running-as-root", defaults.IsPotentiallyRunningAsRoot),
@@ -126,19 +129,8 @@ func cleanCollectorImage(ci *CollectorImage) {
 	ci.Skip = isSkipImage(ci)
 }
 
-// Collect images from kubernetes, convert, clean and store them in the storage
-func Collect(defaults *CollectorImage, annotationNames *AnnotationNames, k8client *kubeclient.Client) (*[]CollectorImage, error) {
-	namespaces, err := k8client.GetNamespaces()
-	if err != nil {
-		log.Fatal().Stack().Err(err).Msg("failed to get namespaces")
-		return nil, err
-	}
-	k8Images, err := k8client.GetImages(namespaces)
-	if err != nil {
-		log.Fatal().Stack().Err(err).Msg("failed to get images")
-		return nil, err
-	}
-
+// ConvertImages images from kubernetes, convert, clean and store them in the storage
+func ConvertImages(k8Images *[]kubeclient.Image, defaults *CollectorImage, annotationNames *AnnotationNames) (*[]CollectorImage, error) {
 	var images []CollectorImage
 
 	for _, k8Image := range *k8Images {
@@ -151,6 +143,7 @@ func Collect(defaults *CollectorImage, annotationNames *AnnotationNames, k8clien
 	return &images, nil
 }
 
+// TODO: Write Tests. Not written yet due to upcomming refactor
 // Store stores images in the provided storager implementation
 func Store(images *[]CollectorImage, name string, storage storage.Storager) error {
 

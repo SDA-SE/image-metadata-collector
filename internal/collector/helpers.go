@@ -7,10 +7,15 @@ import (
 
 func GetOrDefaultBool(m map[string]string, name string, default_ bool) bool {
 	var value bool
+	var err error
+
 	value_, success := m[name]
+
 	if success {
-		value, _ = strconv.ParseBool(value_)
-	} else {
+		value, err = strconv.ParseBool(value_)
+	}
+
+	if !success || err != nil {
 		value = default_
 	}
 	return value
@@ -27,10 +32,14 @@ func GetOrDefaultString(m map[string]string, name, default_ string) string {
 
 func GetOrDefaultInt64(m map[string]string, name string, default_ int64) int64 {
 	var value int64
+	var err error
+
 	value_, success := m[name]
 	if success {
-		value, _ = strconv.ParseInt(value_, 10, 64)
-	} else {
+		value, err = strconv.ParseInt(value_, 10, 64)
+	}
+
+	if !success || err != nil {
 		value = default_
 	}
 	return value
