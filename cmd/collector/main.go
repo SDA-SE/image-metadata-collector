@@ -148,7 +148,11 @@ func bindFlags(cmd *cobra.Command, v *viper.Viper) {
 
 		if !f.Changed && v.IsSet(configName) {
 			val := v.Get(configName)
-			cmd.Flags().Set(f.Name, fmt.Sprintf("%v", val))
+			err := cmd.Flags().Set(f.Name, fmt.Sprintf("%v", val))
+			if err != nil {
+				log.Fatal().Stack().Err(err).Msg("Could not set flag " + f.Name)
+			}
+
 		}
 	})
 }

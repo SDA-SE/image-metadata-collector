@@ -95,8 +95,11 @@ func NewGit(url, directory, privateKeyFile, password string, githubAppId, github
 	}
 
 	if _, err := os.Stat(directory); !os.IsNotExist(err) {
-		// TODO: What happens with this error?
 		err = os.RemoveAll(directory)
+
+		if err != nil {
+			log.Warn().Err(err).Msg("Could not remove directory")
+		}
 	}
 
 	// Clone the given repository to the given directory
