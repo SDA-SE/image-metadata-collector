@@ -3,7 +3,7 @@ module github.com/SDA-SE/sdase-image-collector
 go 1.21
 
 require (
-	github.com/aws/aws-sdk-go v1.45.9
+	github.com/aws/aws-sdk-go v1.45.10
 	github.com/go-git/go-git/v5 v5.9.0
 	github.com/golang-jwt/jwt/v4 v4.5.0
 	github.com/golang-jwt/jwt/v5 v5.0.0
