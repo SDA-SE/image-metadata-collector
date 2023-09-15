@@ -10,33 +10,42 @@ import (
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	// "os"
-	"path"
+	// "path"
 	"strconv"
 )
 
-type s3Parameters struct {
+type S3Config struct {
+	S3BucketName string
+	S3Endpoint   string
+	S3Region     string
+	S3Insecure   bool
+}
+
+type s3 struct {
 	bucket         string
 	endpoint       string
 	insecure       bool
 	region         string
 	forcePathStyle bool
+	fileName       string
 }
 
 // NewS3 creates a new S3Parameter instance.
-func NewS3(bucketName, endpoint, region string, insecure bool) (*s3Parameters, error) {
+func NewS3(cfg *S3Config, fileName string) (*s3, error) {
 
 	forcePathStyle := false
 
-	if endpoint != "" && !forcePathStyle {
+	if cfg.S3Endpoint != "" && !forcePathStyle {
 		forcePathStyle = true
 	}
 
-	s3 := &s3Parameters{
-		bucket:         bucketName,
-		endpoint:       endpoint,
-		insecure:       insecure,
-		region:         region,
+	s3 := &s3{
+		bucket:         cfg.S3BucketName,
+		endpoint:       cfg.S3Endpoint,
+		insecure:       cfg.S3Insecure,
+		region:         cfg.S3Region,
 		forcePathStyle: forcePathStyle,
+		fileName:       fileName,
 	}
 
 	if s3.bucket == "" {
@@ -47,7 +56,7 @@ func NewS3(bucketName, endpoint, region string, insecure bool) (*s3Parameters, e
 }
 
 // Upload uploads the content to an S3 Bucket with a key consisting of the environmentName and the fileName.
-func (s3 s3Parameters) Upload(content []byte, fileName string, environmentName string) error {
+func (s3 s3) Write(content []byte) (int, error) {
 
 	insecureStr := strconv.FormatBool(s3.insecure)
 	log.Info().Str("s3.insecure", insecureStr).Msg("in Upload")
@@ -62,7 +71,7 @@ func (s3 s3Parameters) Upload(content []byte, fileName string, environmentName s
 
 	if err != nil {
 		log.Error().Msg(fmt.Sprintf("Failed to create an aws session err: %v", err))
-		return err
+		return len(content), err
 	}
 
 	// Setup the S3 Upload Manager. Also see the SDK doc for the Upload Manager
@@ -72,17 +81,18 @@ func (s3 s3Parameters) Upload(content []byte, fileName string, environmentName s
 
 	_, err = uploader.Upload(&s3manager.UploadInput{
 		Bucket: aws.String(s3.bucket),
-		Key:    aws.String(environmentName + "/imagecollector/" + path.Base(fileName)),
+		Key:    aws.String(s3.fileName),
 		Body:   bytes.NewReader(content),
 	})
 
 	if err != nil {
 		log.Error().Msg(fmt.Sprintf("Failed to upload to S3 bucket %s, err: %v", s3.bucket, err))
-		return err
+		return 0, err
 	}
 
-	log.Info().Str("fileName", fileName).Msg("Created new file in s3")
-	return nil
+	log.Info().Str("fileName", s3.fileName).Msg("Created new file in s3")
+
+	return len(content), nil
 }
 
 func getAwsLoglevel() *aws.LogLevelType {

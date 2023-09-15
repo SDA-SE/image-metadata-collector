@@ -2,12 +2,12 @@ package collector
 
 import (
 	"encoding/json"
+	"io"
 	"maps"
 	"regexp"
 	"strings"
 
 	"github.com/SDA-SE/image-metadata-collector/internal/pkg/kubeclient"
-	"github.com/SDA-SE/image-metadata-collector/internal/pkg/storage"
 
 	"github.com/rs/zerolog/log"
 )
@@ -145,7 +145,7 @@ func ConvertImages(k8Images *[]kubeclient.Image, defaults *CollectorImage, annot
 
 // TODO: Write Tests. Not written yet due to upcomming refactor
 // Store stores images in the provided storager implementation
-func Store(images *[]CollectorImage, name string, storage storage.Storager) error {
+func Store(images *[]CollectorImage, storage io.Writer) error {
 
 	data, err := json.MarshalIndent(images, "", "\t")
 	if err != nil {
@@ -153,8 +153,7 @@ func Store(images *[]CollectorImage, name string, storage storage.Storager) erro
 		return err
 	}
 
-	filename := name + "-output.json"
-	if err = storage.Upload([]byte(data), filename, name); err != nil {
+	if _, err = storage.Write([]byte(data)); err != nil {
 		return err
 	}
 

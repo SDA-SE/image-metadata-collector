@@ -2,52 +2,48 @@ package storage
 
 import (
 	"fmt"
+	"io"
+	"os"
 
-	"github.com/SDA-SE/image-metadata-collector/internal/pkg/storage/fs"
 	"github.com/SDA-SE/image-metadata-collector/internal/pkg/storage/git"
 	"github.com/SDA-SE/image-metadata-collector/internal/pkg/storage/s3"
 )
 
-// Storager is implemented by different storage options (e.g., S3, Git, Local FS)
-// It defines everything needed to store the collector output to the chosen
-// storage option.
-type Storager interface {
-	// Upload takes the content of the collector output, the filename, and the environment name
-	// of the scanned cluster and writes the content to the chosen storage option
-	Upload(content []byte, fileName, environmentName string) error
-}
-
 type StorageConfig struct {
-	StorageFlag          string
-	S3bucketName         string
-	S3endpoint           string
-	S3region             string
-	S3insecure           bool
-	FsBaseDir            string
-	GitUrl               string
-	GitDirectory         string
-	GitPrivateKeyFile    string
-	GitPassword          string
-	GithubAppId          int64
-	GithubInstallationId int64
+	s3.S3Config
+	git.GitConfig
+
+	StorageFlag string
+	FileName    string
 }
 
-func NewStorage(cfg *StorageConfig) (Storager, error) {
+func NewStorage(cfg *StorageConfig, environment string) (io.Writer, error) {
 
-	var s Storager
+	var w io.Writer
 	var err error
+
+	filename := cfg.FileName
+
+	if filename == "" {
+		filename = environment + "-output.json"
+	}
 
 	switch cfg.StorageFlag {
 	case "s3":
-		s, err = s3.NewS3(cfg.S3bucketName, cfg.S3endpoint, cfg.S3region, cfg.S3insecure)
+		w, err = s3.NewS3(&cfg.S3Config, filename)
 	case "git":
-		s, err = git.NewGit(cfg.GitUrl, cfg.GitDirectory, cfg.GitPrivateKeyFile, cfg.GitPassword, cfg.GithubAppId, cfg.GithubInstallationId)
+		w, err = git.NewGit(&cfg.GitConfig, filename)
 	case "fs":
-		s, err = fs.NewFs(cfg.FsBaseDir)
+		file, err_ := os.Create(filename)
+		defer file.Close()
+		err = err_
+		w = file
+	case "stdout":
+		w = os.Stdout
 	default:
-		s = nil
+		w = nil
 		err = fmt.Errorf("Storage flag %s is not supported", cfg.StorageFlag)
 	}
 
-	return s, err
+	return w, err
 }

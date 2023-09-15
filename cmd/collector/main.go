@@ -75,11 +75,11 @@ func newCommand() *cobra.Command {
 
 	// Output/Storage Config
 	c.PersistentFlags().StringVar(&cfg.StorageConfig.StorageFlag, "storage", "s3", "Write output to storage location [s3, git, local fs]")
-	c.PersistentFlags().StringVar(&cfg.StorageConfig.S3bucketName, "s3-bucket", "", "S3 Bucket to store image collector results")
-	c.PersistentFlags().StringVar(&cfg.StorageConfig.S3endpoint, "s3-endpoint", "", "S3 Endpoint (e.g. minio)")
-	c.PersistentFlags().StringVar(&cfg.StorageConfig.S3region, "s3-region", "", "S3 region")
-	c.PersistentFlags().BoolVar(&cfg.StorageConfig.S3insecure, "s3-insecure", false, "Insecure bucket connection")
-	c.PersistentFlags().StringVar(&cfg.StorageConfig.FsBaseDir, "fs-base-dir", "", "Directory to write the output to, if empty use stdout")
+	c.PersistentFlags().StringVar(&cfg.StorageConfig.FileName, "filename", "", "Output filename, defaults to '<environment>-output.json'")
+	c.PersistentFlags().StringVar(&cfg.StorageConfig.S3BucketName, "s3-bucket", "", "S3 Bucket to store image collector results")
+	c.PersistentFlags().StringVar(&cfg.StorageConfig.S3Endpoint, "s3-endpoint", "", "S3 Endpoint (e.g. minio)")
+	c.PersistentFlags().StringVar(&cfg.StorageConfig.S3Region, "s3-region", "", "S3 region")
+	c.PersistentFlags().BoolVar(&cfg.StorageConfig.S3Insecure, "s3-insecure", false, "Insecure bucket connection")
 	c.PersistentFlags().StringVar(&cfg.StorageConfig.GitPassword, "git-password", "", "Git Password to connect")
 	c.PersistentFlags().StringVar(&cfg.StorageConfig.GitUrl, "git-url", "", "Git URL to connect, use ")
 	c.PersistentFlags().StringVar(&cfg.StorageConfig.GitPrivateKeyFile, "git-private-key-file", "", "Path to the private ssh/github key file")
@@ -161,7 +161,7 @@ func bindFlags(cmd *cobra.Command, v *viper.Viper) {
 func run(cfg *config.Config) {
 	k8client := kubeclient.NewClient(&cfg.KubeConfig)
 
-	storage, err := storage.NewStorage(&cfg.StorageConfig)
+	storage, err := storage.NewStorage(&cfg.StorageConfig, cfg.Environment)
 
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("Could not create storage for: " + cfg.StorageConfig.StorageFlag)
@@ -185,7 +185,7 @@ func run(cfg *config.Config) {
 			}
 
 			// Store images
-			err = collector.Store(images, collectorDefaults.Environment, storage)
+			err = collector.Store(images, storage)
 			if err != nil {
 				log.Fatal().Stack().Err(err).Msg("Could not store collected images")
 			}

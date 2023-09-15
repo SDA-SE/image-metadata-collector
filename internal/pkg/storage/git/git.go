@@ -2,19 +2,30 @@ package git
 
 import (
 	"fmt"
+	"io"
 	"os"
 	"time"
 
 	"encoding/json"
 	"github.com/rs/zerolog/log"
 	"net/http"
+	"path/filepath"
 
-	git "github.com/go-git/go-git/v5"
+	goGit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/golang-jwt/jwt/v4"
 	"strconv"
 )
+
+type GitConfig struct {
+	GitUrl               string
+	GitDirectory         string
+	GitPrivateKeyFile    string
+	GitPassword          string
+	GithubAppId          int64
+	GithubInstallationId int64
+}
 
 type AuthTokenClaim struct {
 	*jwt.StandardClaims
@@ -76,26 +87,25 @@ func GetGithubToken(privateKeyFile string, githubAppId, githubInstallationId int
 	return installationAuthResponse.Token, nil
 }
 
-type gitParameters struct {
-	url        string `validate:"required"`
-	directory  string `validate:"required"`
-	repository *git.Repository
+type git struct {
+	repository *goGit.Repository
+	fileName   string
 }
 
-func NewGit(url, directory, privateKeyFile, password string, githubAppId, githubInstallationId int64) (*gitParameters, error) {
+func NewGit(cfg *GitConfig, filename string) (io.Writer, error) {
 
-	if url == "" {
+	if cfg.GitUrl == "" {
 		log.Info().Msg("git url not given, do not init git")
 		return nil, fmt.Errorf("Missing git Url")
 	}
 
-	if _, err := os.Stat(privateKeyFile); err != nil {
-		log.Warn().Str("privateKeyFile", privateKeyFile).Err(err).Msg("read file failed")
+	if _, err := os.Stat(cfg.GitPrivateKeyFile); err != nil {
+		log.Warn().Str("privateKeyFile", cfg.GitPrivateKeyFile).Err(err).Msg("read file failed")
 		return nil, err
 	}
 
-	if _, err := os.Stat(directory); !os.IsNotExist(err) {
-		err = os.RemoveAll(directory)
+	if _, err := os.Stat(cfg.GitDirectory); !os.IsNotExist(err) {
+		err = os.RemoveAll(cfg.GitDirectory)
 
 		if err != nil {
 			log.Warn().Err(err).Msg("Could not remove directory")
@@ -103,72 +113,70 @@ func NewGit(url, directory, privateKeyFile, password string, githubAppId, github
 	}
 
 	// Clone the given repository to the given directory
-	log.Info().Str("url", url).Int64("githubInstallationId", githubInstallationId).Msg("cloning")
+	log.Info().Str("url", cfg.GitUrl).Int64("githubInstallationId", cfg.GithubInstallationId).Msg("cloning")
 
-	var cloneOptions git.CloneOptions
+	var cloneOptions goGit.CloneOptions
 
 	// TODO: Can this be cleaned up w/o mentioning GH?
-	if githubInstallationId != 0 {
+	if cfg.GithubInstallationId != 0 {
 
 		// TODO: Review lib
-		token, err := GetGithubToken(privateKeyFile, githubAppId, githubInstallationId)
+		token, err := GetGithubToken(cfg.GitPrivateKeyFile, cfg.GithubAppId, cfg.GithubInstallationId)
 		if err != nil {
 			return nil, err
 		}
 
 		// TODO: Review is this GH specific or actually general?
 		// Do we need support for Bitbucket?
-		githubUrl := "https://x-access-token:" + token + "@" + url
-		cloneOptions = git.CloneOptions{
+		githubUrl := "https://x-access-token:" + token + "@" + cfg.GitUrl
+		cloneOptions = goGit.CloneOptions{
 			URL:      githubUrl,
 			Progress: os.Stdout,
 		}
 	} else {
 
-		publicKeys, err := ssh.NewPublicKeysFromFile("git", privateKeyFile, password)
+		publicKeys, err := ssh.NewPublicKeysFromFile("git", cfg.GitPrivateKeyFile, cfg.GitPassword)
 		if err != nil {
 			log.Warn().Err(err).Msg("generate publickeys failed")
 			return nil, err
 		}
 
-		cloneOptions = git.CloneOptions{
-			URL:      url,
+		cloneOptions = goGit.CloneOptions{
+			URL:      cfg.GitUrl,
 			Auth:     publicKeys,
 			Progress: os.Stdout,
 		}
 	}
 
 	// What is set to false here?
-	repository, err := git.PlainClone(directory, false, &cloneOptions)
+	repository, err := goGit.PlainClone(cfg.GitDirectory, false, &cloneOptions)
 
 	if err != nil {
 		log.Warn().Err(err).Msg("could not clone")
 		return nil, err
 	}
 
-	g := &gitParameters{
-		url:        url,
-		directory:  directory,
+	g := &git{
 		repository: repository,
+		fileName:   filepath.Join(cfg.GitDirectory, filename),
 	}
 
 	return g, nil
 }
 
-func (g gitParameters) Upload(content []byte, fileName, environmentName string) error {
-	filepath := g.directory + "/" + fileName
+func (g git) Write(content []byte) (int, error) {
 	worktree, _ := g.repository.Worktree()
 
-	err := os.WriteFile(filepath, content, 0755)
+	err := os.WriteFile(g.fileName, content, 0755)
 	if err != nil {
-		log.Info().Stack().Err(err).Str("filepath", filepath).Msg("Error during opening file")
+		log.Info().Stack().Err(err).Str("filename", g.fileName).Msg("Error during opening file")
 	}
 
-	if _, err := worktree.Add(fileName); err != nil {
-		return err
+	if _, err := worktree.Add(g.fileName); err != nil {
+		return 0, err
 	}
 
-	commit, err := worktree.Commit("example go-git commit", &git.CommitOptions{
+	commit, err := worktree.Commit("example go-git commit", &goGit.CommitOptions{
 		Author: &object.Signature{
 			Name:  "ClusterImageScanner",
 			Email: "",
@@ -178,21 +186,21 @@ func (g gitParameters) Upload(content []byte, fileName, environmentName string) 
 
 	if err != nil {
 		log.Warn().Err(err).Msg("could not create worktree")
-		return nil
+		return 0, err
 	}
 
 	obj, err := g.repository.CommitObject(commit)
 	if err != nil {
-		log.Warn().Err(err).Msg("could get committed object")
-		return nil
+		log.Warn().Err(err).Msg("could not get committed object")
+		return 0, err
 	}
 	log.Info().Str("obj", obj.String()).Msg("committed")
 
-	err = g.repository.Push(&git.PushOptions{})
+	err = g.repository.Push(&goGit.PushOptions{})
 	if err != nil {
 		log.Warn().Err(err).Msg("could not push")
-		return nil
+		return 0, err
 	}
 
-	return nil
+	return len(content), nil
 }
