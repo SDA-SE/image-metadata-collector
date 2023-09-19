@@ -5,6 +5,7 @@ import (
 	"io"
 	"os"
 
+	"github.com/SDA-SE/image-metadata-collector/internal/pkg/storage/api"
 	"github.com/SDA-SE/image-metadata-collector/internal/pkg/storage/git"
 	"github.com/SDA-SE/image-metadata-collector/internal/pkg/storage/s3"
 )
@@ -12,6 +13,7 @@ import (
 type StorageConfig struct {
 	s3.S3Config
 	git.GitConfig
+	api.ApiConfig
 
 	StorageFlag string
 	FileName    string
@@ -31,6 +33,8 @@ func NewStorage(cfg *StorageConfig, environment string) (io.Writer, error) {
 	switch cfg.StorageFlag {
 	case "s3":
 		w, err = s3.NewS3(&cfg.S3Config, filename)
+	case "api":
+		w = cfg.ApiConfig
 	case "git":
 		w, err = git.NewGit(&cfg.GitConfig, filename)
 	case "fs":

@@ -86,6 +86,9 @@ func newCommand() *cobra.Command {
 	c.PersistentFlags().StringVar(&cfg.StorageConfig.GitDirectory, "git-directory", "", "Directory to clone to")
 	c.PersistentFlags().Int64Var(&cfg.StorageConfig.GithubAppId, "github-app-id", 0, "Github AppId")
 	c.PersistentFlags().Int64Var(&cfg.StorageConfig.GithubInstallationId, "github-installation-id", 0, "Github InstallationId")
+	c.PersistentFlags().StringVar(&cfg.StorageConfig.ApiKey, "api-key", "", "API Key")
+	c.PersistentFlags().StringVar(&cfg.StorageConfig.ApiSignature, "api-signature", "", "API Signature")
+	c.PersistentFlags().StringVar(&cfg.StorageConfig.ApiEndpoint, "api-endpoint", "", "API Endpoint")
 
 	// Annotation Key/Name Config
 	c.PersistentFlags().StringVar(&cfg.AnnotationNames.Base, "annotation-name-base", "sdase.org/", "Annotation name for general annotations")
