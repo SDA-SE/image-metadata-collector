@@ -1,7 +1,7 @@
 package collector
 
 import (
-	"encoding/json"
+	"errors"
 	"io"
 	"maps"
 	"regexp"
@@ -145,15 +145,21 @@ func ConvertImages(k8Images *[]kubeclient.Image, defaults *CollectorImage, annot
 
 // TODO: Write Tests. Not written yet due to upcomming refactor
 // Store stores images in the provided storager implementation
-func Store(images *[]CollectorImage, storage io.Writer) error {
+func Store(images *[]CollectorImage, storage io.Writer, jsonMarshal JsonMarshal) error {
 
-	data, err := json.MarshalIndent(images, "", "\t")
+	if images == nil {
+		err := errors.New("cannot marshal nil")
+		log.Fatal().Stack().Err(err)
+		return err
+	}
+
+	data, err := jsonMarshal(images)
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("Could not marshal json images")
 		return err
 	}
 
-	if _, err = storage.Write([]byte(data)); err != nil {
+	if _, err = storage.Write(data); err != nil {
 		return err
 	}
 

@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"encoding/json"
 	"strconv"
 	"strings"
 )
@@ -58,4 +59,10 @@ func GetOrDefaultStringSlice(m map[string]string, name string, default_ []string
 		value = default_
 	}
 	return value
+}
+
+type JsonMarshal func(any) ([]byte, error)
+
+func JsonIndentMarshal(v any) ([]byte, error) {
+	return json.MarshalIndent(v, "", "\t")
 }

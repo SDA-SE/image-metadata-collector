@@ -3,6 +3,7 @@ package collector
 import (
 	// "sort"
 	// "strings"
+	"bytes"
 	"reflect"
 	"testing"
 
@@ -738,4 +739,119 @@ func TestConvert(t *testing.T) {
 
 		})
 	}
+}
+
+func TestStore(t *testing.T) {
+	defaults := CollectorImage{
+		Environment: "myEnv",
+		// Destination: "Lorem Ipsum Dolor Sit Amet",
+		ContainerType:  "myContainerType",
+		Team:           "myTeam",
+		EngagementTags: []string{"defaultTag"},
+
+		IsScanBaseimageLifetime: true,
+		IsScanDependencyCheck:   true,
+		IsScanDependencyTrack:   true,
+		IsScanDistroless:        true,
+		IsScanLifetime:          true,
+		IsScanMalware:           true,
+	}
+
+	fixtures := []CollectorImage{
+		{
+			Namespace: "myNamespace",
+			Image:     "quay.io/name:tag",
+
+			Environment:    defaults.Environment,
+			ContainerType:  defaults.ContainerType,
+			Team:           defaults.Team,
+			EngagementTags: defaults.EngagementTags,
+
+			IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
+			IsScanDependencyCheck:   defaults.IsScanDependencyCheck,
+			IsScanDependencyTrack:   defaults.IsScanDependencyTrack,
+			IsScanDistroless:        defaults.IsScanDistroless,
+			IsScanLifetime:          defaults.IsScanLifetime,
+			IsScanMalware:           defaults.IsScanMalware,
+		},
+		{
+			Namespace: "myNamespace",
+			Image:     "quay.io/name:tag1",
+
+			Environment:    defaults.Environment,
+			ContainerType:  defaults.ContainerType,
+			Team:           defaults.Team,
+			EngagementTags: defaults.EngagementTags,
+
+			IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
+			IsScanDependencyCheck:   defaults.IsScanDependencyCheck,
+			IsScanDependencyTrack:   defaults.IsScanDependencyTrack,
+			IsScanDistroless:        defaults.IsScanDistroless,
+			IsScanLifetime:          defaults.IsScanLifetime,
+			IsScanMalware:           defaults.IsScanMalware,
+		},
+		{
+			Namespace: "myNamespace-1",
+			Image:     "quay.io/name:tag-2",
+			ImageId:   "quay.io/name@sha256:2222",
+
+			Environment:    defaults.Environment,
+			ContainerType:  defaults.ContainerType,
+			Team:           "team-2",
+			EngagementTags: defaults.EngagementTags,
+
+			IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
+			IsScanDependencyCheck:   defaults.IsScanDependencyCheck,
+			IsScanDependencyTrack:   defaults.IsScanDependencyTrack,
+			IsScanDistroless:        false,
+			IsScanLifetime:          defaults.IsScanLifetime,
+			IsScanMalware:           true,
+		},
+	}
+	jsonResult, _ := JsonIndentMarshal(fixtures)
+
+	cases := []struct {
+		name         string
+		fixtures     *[]CollectorImage
+		expectResult any
+		expectError  bool
+	}{
+		{
+			name:         "Test valid input",
+			fixtures:     &fixtures,
+			expectResult: jsonResult,
+			expectError:  false,
+		},
+		{
+			name:         "Test empty input",
+			fixtures:     &[]CollectorImage{},
+			expectResult: []byte("[]"),
+			expectError:  false,
+		},
+		{
+			name:         "Test nil input",
+			fixtures:     nil,
+			expectResult: []byte{},
+			expectError:  true,
+		},
+	}
+
+	for _, tc := range cases {
+		var mockWriter bytes.Buffer
+
+		t.Run(tc.name, func(t *testing.T) {
+			err := Store(tc.fixtures, &mockWriter, JsonIndentMarshal)
+			if tc.expectError {
+				if err == nil {
+					t.Fatalf("Expected error but got none")
+				}
+			} else {
+				writtenData := mockWriter.Bytes()
+				if !reflect.DeepEqual(writtenData, tc.expectResult) {
+					t.Fatalf("Marshaling failed. Expected %v, got %v", tc.expectResult, writtenData)
+				}
+			}
+		})
+	}
+
 }
