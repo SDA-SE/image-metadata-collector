@@ -37,7 +37,7 @@ func NewStorage(cfg *StorageConfig, environment string) (io.Writer, error) {
 		w = cfg.ApiConfig
 	case "git":
 		w, err = git.NewGit(&cfg.GitConfig, filename)
-
+	case "fs":
 		file, err_ := os.Create(filename)
 		defer file.Close()
 		err = err_
