@@ -6,8 +6,8 @@ import (
 	"regexp"
 	"strings"
 
-	"github.com/SDA-SE/sdase-image-collector/internal/pkg/kubeclient"
-	"github.com/SDA-SE/sdase-image-collector/internal/pkg/storage"
+	"github.com/SDA-SE/image-metadata-collector/internal/pkg/kubeclient"
+	"github.com/SDA-SE/image-metadata-collector/internal/pkg/storage"
 
 	"github.com/rs/zerolog/log"
 )

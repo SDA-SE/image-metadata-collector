@@ -6,7 +6,7 @@ import (
 	"reflect"
 	"testing"
 
-	"github.com/SDA-SE/sdase-image-collector/internal/pkg/kubeclient"
+	"github.com/SDA-SE/image-metadata-collector/internal/pkg/kubeclient"
 )
 
 func TestIsSkip(t *testing.T) {

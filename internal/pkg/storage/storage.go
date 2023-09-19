@@ -3,9 +3,9 @@ package storage
 import (
 	"fmt"
 
-	"github.com/SDA-SE/sdase-image-collector/internal/pkg/storage/fs"
-	"github.com/SDA-SE/sdase-image-collector/internal/pkg/storage/git"
-	"github.com/SDA-SE/sdase-image-collector/internal/pkg/storage/s3"
+	"github.com/SDA-SE/image-metadata-collector/internal/pkg/storage/fs"
+	"github.com/SDA-SE/image-metadata-collector/internal/pkg/storage/git"
+	"github.com/SDA-SE/image-metadata-collector/internal/pkg/storage/s3"
 )
 
 // Storager is implemented by different storage options (e.g., S3, Git, Local FS)

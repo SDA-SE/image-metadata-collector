@@ -7,10 +7,10 @@ import (
 	"strings"
 	"time"
 
-	"github.com/SDA-SE/sdase-image-collector/internal/collector"
-	"github.com/SDA-SE/sdase-image-collector/internal/config"
-	"github.com/SDA-SE/sdase-image-collector/internal/pkg/kubeclient"
-	"github.com/SDA-SE/sdase-image-collector/internal/pkg/storage"
+	"github.com/SDA-SE/image-metadata-collector/internal/collector"
+	"github.com/SDA-SE/image-metadata-collector/internal/config"
+	"github.com/SDA-SE/image-metadata-collector/internal/pkg/kubeclient"
+	"github.com/SDA-SE/image-metadata-collector/internal/pkg/storage"
 
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promhttp"

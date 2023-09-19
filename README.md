@@ -1,4 +1,4 @@
-# sdase-image-collector
+# image-metadata-collector
 
 # Contributing
 We are looking forward to contributions. Take a look at our [Contribution Guidelines](CONTRIBUTING.md) before submitting Pull Requests.
