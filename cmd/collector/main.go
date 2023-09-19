@@ -180,7 +180,7 @@ func run(cfg *config.Config) {
 	}
 
 	// Store images
-	err = collector.Store(images, storage)
+	err = collector.Store(images, storage, collector.JsonIndentMarshal)
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("Could not store collected images")
 	}
