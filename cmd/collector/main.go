@@ -3,17 +3,13 @@ package main
 import (
 	"flag"
 	"fmt"
-	"net/http"
 	"strings"
-	"time"
 
 	"github.com/SDA-SE/image-metadata-collector/internal/collector"
 	"github.com/SDA-SE/image-metadata-collector/internal/config"
 	"github.com/SDA-SE/image-metadata-collector/internal/pkg/kubeclient"
 	"github.com/SDA-SE/image-metadata-collector/internal/pkg/storage"
 
-	"github.com/prometheus/client_golang/prometheus"
-	"github.com/prometheus/client_golang/prometheus/promhttp"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
 	"github.com/spf13/cobra"
@@ -64,9 +60,7 @@ func newCommand() *cobra.Command {
 	}
 
 	// Run Configuration
-	c.PersistentFlags().DurationVar(&cfg.ScanInterval, "scan-interval", time.Duration(3600)*time.Second, "Rescan intervalInSeconds in seconds for image collector")
 	c.PersistentFlags().BoolVar(&cfg.Debug, "debug", false, "Set logging level to debug, default logging level is info")
-	c.PersistentFlags().BoolVar(&cfg.ExposeMetrics, "expose-metrics", true, "Expose metrics endpoint")
 
 	// Kubernetes Config
 	c.PersistentFlags().StringVar(&cfg.KubeConfig.ConfigFile, "kube-config", "", "absolute path to the kubeconfig file")
@@ -173,42 +167,22 @@ func run(cfg *config.Config) {
 	collectorDefaults := &cfg.CollectorImage
 	annotationNames := &cfg.AnnotationNames
 
-	go func() {
-		for {
-			// Collect images from K8
-			k8Images, err := k8client.GetAllImages()
-			if err != nil {
-				log.Fatal().Stack().Err(err).Msg("Could not retrieve images from K8")
-			}
-
-			// Convert & Clean k8 images to collector images
-			images, err := collector.ConvertImages(k8Images, collectorDefaults, annotationNames)
-			if err != nil {
-				log.Fatal().Stack().Err(err).Msg("Could not collect images")
-			}
-
-			// Store images
-			err = collector.Store(images, storage)
-			if err != nil {
-				log.Fatal().Stack().Err(err).Msg("Could not store collected images")
-			}
-
-			// Wait for next scan
-			time.Sleep(cfg.ScanInterval)
-		}
-	}()
-
-	if cfg.ExposeMetrics {
-		// Expose the registered metrics via HTTP.
-		http.Handle("/metrics", promhttp.HandlerFor(
-			prometheus.DefaultGatherer,
-			promhttp.HandlerOpts{
-				// Opt into OpenMetrics to support exemplars.
-				EnableOpenMetrics: true,
-			},
-		))
-
-		err = http.ListenAndServe(":9402", nil)
-		log.Fatal().Stack().Err(err).Msg("Could not start listener for image collector")
+	// Collect images from K8
+	k8Images, err := k8client.GetAllImages()
+	if err != nil {
+		log.Fatal().Stack().Err(err).Msg("Could not retrieve images from K8")
 	}
+
+	// Convert & Clean k8 images to collector images
+	images, err := collector.ConvertImages(k8Images, collectorDefaults, annotationNames)
+	if err != nil {
+		log.Fatal().Stack().Err(err).Msg("Could not collect images")
+	}
+
+	// Store images
+	err = collector.Store(images, storage)
+	if err != nil {
+		log.Fatal().Stack().Err(err).Msg("Could not store collected images")
+	}
+
 }

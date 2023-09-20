@@ -1,11 +1,9 @@
 package config
 
 import (
-	"time"
-
 	"github.com/SDA-SE/image-metadata-collector/internal/collector"
-	"github.com/SDA-SE/image-metadata-collector/internal/pkg/storage"
 	"github.com/SDA-SE/image-metadata-collector/internal/pkg/kubeclient"
+	"github.com/SDA-SE/image-metadata-collector/internal/pkg/storage"
 )
 
 type Config struct {
@@ -14,7 +12,5 @@ type Config struct {
 	kubeclient.KubeConfig
 	storage.StorageConfig
 
-	ScanInterval  time.Duration
-	Debug         bool
-	ExposeMetrics bool
+	Debug bool
 }
