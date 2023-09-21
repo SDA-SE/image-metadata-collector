@@ -8,7 +8,7 @@ on:
 
 # TODO: After stable build on main is available, move to semantic versioning
 env:
-  REPOSITORY: quay.io/sdase/sdase-image-collector
+  REPOSITORY: quay.io/sdase/image-metadata-collector
   TAG: ${{ github.sha }}
 
 jobs:
