@@ -103,15 +103,13 @@ func TestIsSkip(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			result := isSkipImage(&tc.targetImage)
 
-			if result != tc.expectedResult {
-				t.Fatalf("Expected %v, got %v, with Namespace=%s, Skip=%v, NamespaceFilter=%v, NamespaceFilterNegated=%v",
-					tc.expectedResult,
-					result,
-					tc.targetImage.Namespace,
-					tc.targetImage.Skip,
-					tc.targetImage.NamespaceFilter,
-					tc.targetImage.NamespaceFilterNegated)
-			}
+			assert.Equal(t, result, tc.expectedResult, "Expected %v, got %v, with Namespace=%s, Skip=%v, NamespaceFilter=%v, NamespaceFilterNegated=%v",
+				tc.expectedResult,
+				result,
+				tc.targetImage.Namespace,
+				tc.targetImage.Skip,
+				tc.targetImage.NamespaceFilter,
+				tc.targetImage.NamespaceFilterNegated)
 		})
 	}
 }
@@ -218,21 +216,22 @@ func TestCleanCollectorImageSkipSet(t *testing.T) {
 			initialSkip := tc.targetImage.Skip
 			cleanCollectorImage(&tc.targetImage)
 
-			if tc.expectedChanged && tc.targetImage.Skip == initialSkip {
-				t.Fatalf("Expected Skip to change but it did not change")
-			} else if !tc.expectedChanged && tc.targetImage.Skip != initialSkip {
-				t.Fatalf("Expected Skip not to change but it did change")
+			if tc.expectedChanged {
+				assert.NotEqual(t, tc.targetImage.Skip, initialSkip, "Expected Skip to change but it did not change")
+			} else {
+				assert.Equal(t, tc.targetImage.Skip, initialSkip, "Expected Skip not to change but it did change")
 			}
 
-			if tc.targetImage.Skip != tc.expectedResult {
-				t.Fatalf("Expected %v, got %v, with Namespace=%s, Skip=%v, NamespaceFilter=%v, NamespaceFilterNegated=%v",
-					tc.expectedResult,
-					tc.targetImage.Skip,
-					tc.targetImage.Namespace,
-					tc.targetImage.Skip,
-					tc.targetImage.NamespaceFilter,
-					tc.targetImage.NamespaceFilterNegated)
-			}
+			assert.Equal(t,
+				tc.targetImage.Skip,
+				tc.expectedResult,
+				"Expected %v, got %v, with Namespace=%s, Skip=%v, NamespaceFilter=%v, NamespaceFilterNegated=%v",
+				tc.expectedResult,
+				tc.targetImage.Skip,
+				tc.targetImage.Namespace,
+				tc.targetImage.Skip,
+				tc.targetImage.NamespaceFilter,
+				tc.targetImage.NamespaceFilterNegated)
 		})
 	}
 }
@@ -310,25 +309,20 @@ func TestCleanCollectorImageImageNameAndID(t *testing.T) {
 
 			cleanCollectorImage(&tc.targetImage)
 
-			if tc.expectedImgChanged && tc.targetImage.Image == initialImage {
-				t.Fatalf("Expected Image to change but it did not change")
-			} else if !tc.expectedImgChanged && tc.targetImage.Image != initialImage {
-				t.Fatalf("Expected Image not to change but it did change")
+			if tc.expectedImgChanged {
+				assert.NotEqual(t, tc.targetImage.Image, initialImage, "Expected Image to change but it did not change")
+			} else {
+				assert.Equal(t, tc.targetImage.Image, initialImage, "Expected Image not to change but it did change")
 			}
 
-			if tc.expectedImgIdChanged && tc.targetImage.ImageId == initialImageId {
-				t.Fatalf("Expected ImageId to change but it did not change")
-			} else if !tc.expectedImgIdChanged && tc.targetImage.ImageId != initialImageId {
-				t.Fatalf("Expected ImageId not to change but it did change")
+			if tc.expectedImgIdChanged {
+				assert.NotEqual(t, tc.targetImage.ImageId, initialImageId, "Expected ImageId to change but it did not change")
+			} else {
+				assert.Equal(t, tc.targetImage.ImageId, initialImageId, "Expected ImageId not to change but it did change")
 			}
 
-			if tc.targetImage.Image != tc.expectedImage {
-				t.Fatalf("Expected %v, got %v,", tc.expectedImage, tc.targetImage.Image)
-			}
-
-			if tc.targetImage.ImageId != tc.expectedImageId {
-				t.Fatalf("Expected %v, got %v,", tc.expectedImageId, tc.targetImage.ImageId)
-			}
+			assert.Equal(t, tc.targetImage.Image, tc.expectedImage, "Expected %v, got %v,", tc.expectedImage, tc.targetImage.Image)
+			assert.Equal(t, tc.targetImage.ImageId, tc.expectedImageId, "Expected %v, got %v,", tc.expectedImageId, tc.targetImage.ImageId)
 		})
 	}
 }
@@ -726,18 +720,9 @@ func TestConvert(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			results, err := ConvertImages(tc.targetK8Image, tc.defaults, tc.annotationNames)
 
-			if err != nil {
-				t.Fatalf("Expected no error, got %v", err)
-			}
-
-			if len(*results) != len(*tc.expectedCollectorImage) {
-				t.Fatalf("Lengths does not match. Expected %v, got %v,", len(*tc.expectedCollectorImage), len(*results))
-			}
-
-			if !reflect.DeepEqual(results, tc.expectedCollectorImage) {
-				t.Fatalf("Expected %v, got %v,", *tc.expectedCollectorImage, *results)
-			}
-
+			assert.NoError(t, err, "Expected no error, got %v", err)
+			assert.Len(t, *results, len(*tc.expectedCollectorImage), "Lengths does not match. Expected %v, got %v,", len(*tc.expectedCollectorImage), len(*results))
+			assert.True(t, reflect.DeepEqual(results, tc.expectedCollectorImage), "Expected %v, got %v,", *tc.expectedCollectorImage, *results)
 		})
 	}
 }
