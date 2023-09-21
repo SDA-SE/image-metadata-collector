@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"github.com/SDA-SE/image-metadata-collector/internal/pkg/kubeclient"
+	"github.com/stretchr/testify/assert"
 )
 
 func TestIsSkip(t *testing.T) {
@@ -842,14 +843,10 @@ func TestStore(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			err := Store(tc.fixtures, &mockWriter, JsonIndentMarshal)
 			if tc.expectError {
-				if err == nil {
-					t.Fatalf("Expected error but got none")
-				}
+				assert.Error(t, err, "Expected error but got none")
 			} else {
 				writtenData := mockWriter.Bytes()
-				if !reflect.DeepEqual(writtenData, tc.expectResult) {
-					t.Fatalf("Marshaling failed. Expected %v, got %v", tc.expectResult, writtenData)
-				}
+				assert.Equal(t, writtenData, tc.expectResult, "Marshaling failed. Expected %v, got %v", tc.expectResult, writtenData)
 			}
 		})
 	}
