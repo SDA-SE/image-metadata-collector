@@ -19,19 +19,11 @@ import (
 
 const AppName = "collector"
 
-const ShortDescription = "Collect images, apps, and their versions."
-const LongDescription = `Collector is a tool that will scan
-	'Deployment's
-	'StatefulSet's
-	and 'DaemonSet's
+const ShortDescription = "Collect images"
+const LongDescription = `Image Metadata Collector is a tool that will scan
 	'Namespace's,
 	and 'Pod's
-	for version and image information and push these as metrics to Prometheus.
-
-	All Parameters can also be set as Environment Variables, following the pattern:
-	--environment-name -> COLLECTOR_ENVIRONMENT_NAME
-	--team -> COLLECTOR_TEAM
-	--scan-interval -> COLLECTOR_SCAN_INTERVAL
+	for image and team information.
 	`
 
 func main() {
@@ -68,7 +60,7 @@ func newCommand() *cobra.Command {
 	c.PersistentFlags().StringVar(&cfg.KubeConfig.MasterUrl, "master-url", "", "URL of the API server")
 
 	// Output/Storage Config
-	c.PersistentFlags().StringVar(&cfg.StorageConfig.StorageFlag, "storage", "s3", "Write output to storage location [s3, git, local fs]")
+	c.PersistentFlags().StringVar(&cfg.StorageConfig.StorageFlag, "storage", "api", "Write output to storage location [api, s3, git, local fs]")
 	c.PersistentFlags().StringVar(&cfg.StorageConfig.FileName, "filename", "", "Output filename, defaults to '<environment>-output.json'")
 	c.PersistentFlags().StringVar(&cfg.StorageConfig.S3BucketName, "s3-bucket", "", "S3 Bucket to store image collector results")
 	c.PersistentFlags().StringVar(&cfg.StorageConfig.S3Endpoint, "s3-endpoint", "", "S3 Endpoint (e.g. minio)")
@@ -82,7 +74,7 @@ func newCommand() *cobra.Command {
 	c.PersistentFlags().Int64Var(&cfg.StorageConfig.GithubInstallationId, "github-installation-id", 0, "Github InstallationId")
 	c.PersistentFlags().StringVar(&cfg.StorageConfig.ApiKey, "api-key", "", "API Key")
 	c.PersistentFlags().StringVar(&cfg.StorageConfig.ApiSignature, "api-signature", "", "API Signature")
-	c.PersistentFlags().StringVar(&cfg.StorageConfig.ApiEndpoint, "api-endpoint", "", "API Endpoint")
+	c.PersistentFlags().StringVar(&cfg.StorageConfig.ApiEndpoint, "api-endpoint", "", "API Endpoint, e.g. https://api.test.sda-se.io/v1/account/$ACCOUNT/cluster/$CLUSTER/image-collector-report/images")
 
 	// Annotation Key/Name Config
 	c.PersistentFlags().StringVar(&cfg.AnnotationNames.Base, "annotation-name-base", "sdase.org/", "Annotation name for general annotations")
@@ -184,5 +176,4 @@ func run(cfg *config.Config) {
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("Could not store collected images")
 	}
-
 }
