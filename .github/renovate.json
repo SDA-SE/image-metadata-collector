@@ -3,5 +3,5 @@
   "extends": [
     "github>SDA-SE/renovate-config:sda-default#0.13.0"
   ],
-  "dependencyDashboard": true
+  "postUpdateOptions": ["gomodTidy"]
 }

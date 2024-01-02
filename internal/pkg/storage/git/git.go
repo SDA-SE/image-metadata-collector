@@ -14,7 +14,7 @@ import (
 	goGit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
-	"github.com/golang-jwt/jwt/v4"
+	"github.com/golang-jwt/jwt/v5"
 	"strconv"
 )
 
@@ -28,7 +28,7 @@ type GitConfig struct {
 }
 
 type AuthTokenClaim struct {
-	*jwt.StandardClaims
+	*jwt.RegisteredClaims
 }
 
 type InstallationAuthResponse struct {
@@ -59,9 +59,9 @@ func GetGithubToken(privateKeyFile string, githubAppId, githubInstallationId int
 	jwtToken := jwt.New(jwt.SigningMethodRS256)
 
 	jwtToken.Claims = &AuthTokenClaim{
-		&jwt.StandardClaims{
-			IssuedAt:  time.Now().Unix(),
-			ExpiresAt: time.Now().Add(time.Minute * 9).Unix(),
+		RegisteredClaims: &jwt.RegisteredClaims{
+			IssuedAt:  &jwt.NumericDate{Time: time.Now()},
+			ExpiresAt: &jwt.NumericDate{Time: time.Now().Add(time.Minute * 9)},
 			Issuer:    strconv.FormatInt(githubAppId, 10),
 		},
 	}
