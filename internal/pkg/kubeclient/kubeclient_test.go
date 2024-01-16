@@ -826,7 +826,7 @@ func TestGetAllImages(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			client.Clientset = testclient.NewSimpleClientset(tc.pods...)
-			images, err := client.GetAllImages()
+			images, err := client.GetAllImagesForAllNamespaces()
 
 			sort.Slice(*images, func(i, j int) bool {
 				return strings.ToLower((*images)[i].Image) < strings.ToLower((*images)[j].Image)

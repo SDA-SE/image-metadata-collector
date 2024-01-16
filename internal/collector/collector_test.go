@@ -99,17 +99,86 @@ func TestIsSkip(t *testing.T) {
 		},
 	}
 
+	runConfig := RunConfig{
+		ImageFilter: []string{},
+	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			result := isSkipImage(&tc.targetImage)
+			result := isSkipImageByNamespace(&tc.targetImage)
 
-			assert.Equal(t, result, tc.expectedResult, "Expected %v, got %v, with Namespace=%s, Skip=%v, NamespaceFilter=%v, NamespaceFilterNegated=%v",
+			assert.Equal(t, result, tc.expectedResult, "Expected %v, got %v, with Namespace=%s, Skip=%v, NamespaceFilter=%v, NamespaceFilterNegated=%v, imageFilter=\"%v\"",
 				tc.expectedResult,
 				result,
 				tc.targetImage.Namespace,
 				tc.targetImage.Skip,
 				tc.targetImage.NamespaceFilter,
-				tc.targetImage.NamespaceFilterNegated)
+				tc.targetImage.NamespaceFilterNegated,
+				runConfig.ImageFilter)
+		})
+	}
+}
+
+func TestIsSkipByImageFilter(t *testing.T) {
+	testCases := []struct {
+		name           string
+		targetImage    CollectorImage
+		imageFilter    []string
+		expectedResult bool
+	}{
+		{
+			name: "NoSkipConditionSet",
+			targetImage: CollectorImage{
+				Namespace: "name",
+				Skip:      false,
+			},
+			imageFilter:    []string{},
+			expectedResult: false,
+		},
+		{
+			name:        "SkipIsSetExpectSkip",
+			imageFilter: []string{".*amazonaws.com/.*"},
+			targetImage: CollectorImage{
+				Image:     "333.dkr.ecr.eu-central-1.amazonaws.com/eks/kube-proxy@sha256:5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03",
+				Namespace: "name",
+				Skip:      false,
+			},
+			expectedResult: true,
+		},
+		{
+			name:        "SkipIsSetExpectSkipWithoutSpecialRegex",
+			imageFilter: []string{"amazonaws.com/"},
+			targetImage: CollectorImage{
+				Image: "333.dkr.ecr.eu-central-1.amazonaws.com/eks/kube-proxy@sha256:5891b5b522d5df086d0ff0b110fbd9d21bb4fc7163af34d08286a2e846f6be03",
+				Skip:  false,
+			},
+			expectedResult: true,
+		},
+		{
+			name:        "NoMatchingNamespaceFilterSetExpectNoSkip",
+			imageFilter: []string{"^other$"},
+			targetImage: CollectorImage{
+				Namespace: "name",
+				Skip:      true,
+			},
+			expectedResult: false,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			runConfig := RunConfig{
+				ImageFilter: tc.imageFilter,
+			}
+			result := isSkipImageByImageFilter(&tc.targetImage, &runConfig)
+
+			assert.Equal(t, result, tc.expectedResult, "Expected %v, got %v, with Namespace=%s, Skip=%v, NamespaceFilter=%v, NamespaceFilterNegated=%v, imageFilter=\"%v\"",
+				tc.expectedResult,
+				result,
+				tc.targetImage.Namespace,
+				tc.targetImage.Skip,
+				tc.targetImage.NamespaceFilter,
+				tc.targetImage.NamespaceFilterNegated,
+				tc.imageFilter)
 		})
 	}
 }
@@ -210,11 +279,13 @@ func TestCleanCollectorImageSkipSet(t *testing.T) {
 			expectedResult:  true,
 		},
 	}
-
+	runConfig := RunConfig{
+		ImageFilter: []string{},
+	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			initialSkip := tc.targetImage.Skip
-			cleanCollectorImage(&tc.targetImage)
+			cleanCollectorImage(&tc.targetImage, &runConfig)
 
 			if tc.expectedChanged {
 				assert.NotEqual(t, tc.targetImage.Skip, initialSkip, "Expected Skip to change but it did not change")
@@ -301,13 +372,15 @@ func TestCleanCollectorImageImageNameAndID(t *testing.T) {
 			expectedImgIdChanged: false,
 		},
 	}
-
+	runConfig := RunConfig{
+		ImageFilter: []string{},
+	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			initialImage := tc.targetImage.Image
 			initialImageId := tc.targetImage.ImageId
 
-			cleanCollectorImage(&tc.targetImage)
+			cleanCollectorImage(&tc.targetImage, &runConfig)
 
 			if tc.expectedImgChanged {
 				assert.NotEqual(t, tc.targetImage.Image, initialImage, "Expected Image to change but it did not change")
@@ -715,10 +788,12 @@ func TestConvert(t *testing.T) {
 			}},
 		},
 	}
-
+	runConfig := RunConfig{
+		ImageFilter: []string{},
+	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			results, err := ConvertImages(tc.targetK8Image, tc.defaults, tc.annotationNames)
+			results, err := ConvertImages(tc.targetK8Image, tc.defaults, tc.annotationNames, &runConfig)
 
 			assert.NoError(t, err, "Expected no error, got %v", err)
 			assert.Len(t, *results, len(*tc.expectedCollectorImage), "Lengths does not match. Expected %v, got %v,", len(*tc.expectedCollectorImage), len(*results))

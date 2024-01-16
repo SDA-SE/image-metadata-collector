@@ -53,7 +53,7 @@ func newCommand() *cobra.Command {
 
 	// Run Configuration
 	c.PersistentFlags().BoolVar(&cfg.Debug, "debug", false, "Set logging level to debug, default logging level is info")
-
+	c.Flags().StringSliceVarP(&cfg.RunConfig.ImageFilter, "image-filter", "s", []string{}, "Images to set the skip flag to true. Images as regex")
 	// Kubernetes Config
 	c.PersistentFlags().StringVar(&cfg.KubeConfig.ConfigFile, "kube-config", "", "absolute path to the kubeconfig file")
 	c.PersistentFlags().StringVar(&cfg.KubeConfig.Context, "kube-context", "", "The context to use to talk to the Kubernetes apiserver. If unset defaults to whatever your current-context is (kubectl config current-context)")
@@ -158,15 +158,16 @@ func run(cfg *config.Config) {
 
 	collectorDefaults := &cfg.CollectorImage
 	annotationNames := &cfg.AnnotationNames
+	runConfig := &cfg.RunConfig
 
 	// Collect images from K8
-	k8Images, err := k8client.GetAllImages()
+	k8Images, err := k8client.GetAllImagesForAllNamespaces()
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("Could not retrieve images from K8")
 	}
 
 	// Convert & Clean k8 images to collector images
-	images, err := collector.ConvertImages(k8Images, collectorDefaults, annotationNames)
+	images, err := collector.ConvertImages(k8Images, collectorDefaults, annotationNames, runConfig)
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("Could not collect images")
 	}

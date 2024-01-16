@@ -177,8 +177,7 @@ func (c *Client) GetImages(namespaces *[]Namespace) (*[]Image, error) {
 	return &images, nil
 }
 
-// GetAllImages retrieve all Images for all Namespacesk
-func (c *Client) GetAllImages() (*[]Image, error) {
+func (c *Client) GetAllImagesForAllNamespaces() (*[]Image, error) {
 	namespaces, err := c.GetNamespaces()
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("failed to get namespaces")

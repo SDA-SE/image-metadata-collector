@@ -55,9 +55,13 @@ type CollectorImage struct {
 	ScanLifetimeMaxDays              int64 `json:"is_scan_lifetime_max_days"`
 }
 
+type RunConfig struct {
+	ImageFilter     []string
+	NamespaceToTeam []string
+}
+
 // convertK8ImageToCollectorImage by considering the images labels, annotations and cluster wide defaults
 func convertK8ImageToCollectorImage(k8Image kubeclient.Image, defaults *CollectorImage, annotationNames *AnnotationNames) *CollectorImage {
-
 	tags := k8Image.Labels
 	if tags == nil {
 		tags = k8Image.Annotations
@@ -104,8 +108,23 @@ func convertK8ImageToCollectorImage(k8Image kubeclient.Image, defaults *Collecto
 
 }
 
-// isSkipImage by considering the images labels, annotations and deployment wide defaults
-func isSkipImage(ci *CollectorImage) bool {
+func isSkipImage(ci *CollectorImage, imageFilter *RunConfig) bool {
+	return isSkipImageByNamespace(ci) || isSkipImageByImageFilter(ci, imageFilter)
+}
+
+func isSkipImageByImageFilter(ci *CollectorImage, runConfig *RunConfig) bool {
+	for _, imageFilter := range runConfig.ImageFilter {
+		matched, err := regexp.MatchString(imageFilter, ci.Image)
+		if matched && err == nil {
+			return true
+		}
+	}
+
+	return false
+}
+
+// considering the images labels, annotations and deployment wide defaults
+func isSkipImageByNamespace(ci *CollectorImage) bool {
 	isNamespaceFilter, _ := regexp.MatchString(ci.NamespaceFilter, ci.Namespace)
 	if ci.NamespaceFilter == "" {
 		isNamespaceFilter = false
@@ -121,21 +140,21 @@ func isSkipImage(ci *CollectorImage) bool {
 	return ci.Skip || isNamespaceFilter || isNamespaceFilterNegated
 }
 
-// cleanCollectorImage applies replacement and other rules to specific fields
-func cleanCollectorImage(ci *CollectorImage) {
+// applies replacement and other rules to specific fields
+func cleanCollectorImage(ci *CollectorImage, imageFilter *RunConfig) {
 	ci.Image = strings.Replace(ci.Image, "docker-pullable://", "", -1)
 	ci.ImageId = strings.Replace(ci.ImageId, "docker-pullable://", "", -1)
 
-	ci.Skip = isSkipImage(ci)
+	ci.Skip = isSkipImage(ci, imageFilter)
 }
 
-// ConvertImages images from kubernetes, convert, clean and store them in the storage
-func ConvertImages(k8Images *[]kubeclient.Image, defaults *CollectorImage, annotationNames *AnnotationNames) (*[]CollectorImage, error) {
+// images from kubernetes, convert, clean and store them in the storage
+func ConvertImages(k8Images *[]kubeclient.Image, defaults *CollectorImage, annotationNames *AnnotationNames, runConfig *RunConfig) (*[]CollectorImage, error) {
 	var images []CollectorImage
 
 	for _, k8Image := range *k8Images {
 		collectorImage := convertK8ImageToCollectorImage(k8Image, defaults, annotationNames)
-		cleanCollectorImage(collectorImage)
+		cleanCollectorImage(collectorImage, runConfig)
 		images = append(images, *collectorImage)
 
 	}
@@ -144,7 +163,7 @@ func ConvertImages(k8Images *[]kubeclient.Image, defaults *CollectorImage, annot
 }
 
 // TODO: Write Tests. Not written yet due to upcomming refactor
-// Store stores images in the provided storager implementation
+// stores images in the provided storager implementation
 func Store(images *[]CollectorImage, storage io.Writer, jsonMarshal JsonMarshal) error {
 
 	if images == nil {

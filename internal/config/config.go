@@ -11,6 +11,7 @@ type Config struct {
 	collector.CollectorImage
 	kubeclient.KubeConfig
 	storage.StorageConfig
+	collector.RunConfig
 
 	Debug bool
 }
