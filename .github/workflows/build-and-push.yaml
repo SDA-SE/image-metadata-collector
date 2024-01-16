@@ -30,7 +30,7 @@ jobs:
       # TODO: Discuss testing strategy and change this step accordingly
       # e.g. Test in Docker Image, Kind Cluster, ...
       - name: Set up Go for Tests
-        uses: actions/setup-go@v4
+        uses: actions/setup-go@v5
         with:
           go-version: 1.21
       - name: Test with Go

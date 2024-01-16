@@ -30,6 +30,10 @@ func GetOrDefaultString(m map[string]string, name, default_ string) string {
 		value = default_
 	}
 
+	if len(value) == 0 {
+		value = default_
+	}
+
 	return value
 }
 

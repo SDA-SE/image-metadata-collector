@@ -11,6 +11,7 @@ var testMap = map[string]string{
 	"bool":         "true",
 	"string-slice": "a,b,c",
 	"float":        "1.23",
+	"empty":        "",
 }
 
 type TestCaseHelper struct {
@@ -100,6 +101,13 @@ func TestGetOrDefaultString(t *testing.T) {
 			targetKeyName:  "str",
 			targetDefault:  "default-value",
 			expectedResult: "some-string",
+		},
+		TestCaseHelper{
+			name:           "EmptyString",
+			inputMap:       testMap,
+			targetKeyName:  "empty",
+			targetDefault:  "default-value",
+			expectedResult: "default-value",
 		},
 	}
 
