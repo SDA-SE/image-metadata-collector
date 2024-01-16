@@ -13,7 +13,7 @@ env:
 jobs:
   dry-release:
     name: dry-release
-    uses: SDA-SE/github-action-workflows/.github/workflows/semantic-release.yaml@1.0.4
+    uses: SDA-SE/github-action-workflows/.github/workflows/semantic-release.yaml@1.0.5
     permissions:
       contents: write
       issues: write
