@@ -75,7 +75,7 @@ func TestIsSkip(t *testing.T) {
 				NamespaceFilter:        "",
 				NamespaceFilterNegated: "^other$",
 			},
-			expectedResult: true,
+			expectedResult: false,
 		},
 		{
 			name: "MultipleMatchingFilterSetExpectSkip",
@@ -96,6 +96,33 @@ func TestIsSkip(t *testing.T) {
 				NamespaceFilterNegated: "^other$",
 			},
 			expectedResult: true,
+		},
+		{
+			name: "PRExpectSkip",
+			targetImage: CollectorImage{
+				Namespace:              "test-pr-xx",
+				Skip:                   false,
+				NamespaceFilterNegated: "\\-pr\\-",
+			},
+			expectedResult: true,
+		},
+		{
+			name: "PRExpectSkipX",
+			targetImage: CollectorImage{
+				Namespace:              "test-pr-xx",
+				Skip:                   false,
+				NamespaceFilterNegated: "-pr-",
+			},
+			expectedResult: true,
+		},
+		{
+			name: "PRExpectNoSkip",
+			targetImage: CollectorImage{
+				Namespace:              "test-pr-xx",
+				Skip:                   false,
+				NamespaceFilterNegated: "1234567890",
+			},
+			expectedResult: false,
 		},
 	}
 
@@ -263,8 +290,8 @@ func TestCleanCollectorImageSkipSet(t *testing.T) {
 				NamespaceFilter:        "",
 				NamespaceFilterNegated: "^other$",
 			},
-			expectedChanged: true,
-			expectedResult:  true,
+			expectedChanged: false,
+			expectedResult:  false,
 		},
 		{
 			name: "MultipleMatchingFilterSetExpectSkip",

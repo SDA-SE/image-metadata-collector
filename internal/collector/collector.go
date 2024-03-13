@@ -129,11 +129,10 @@ func isSkipImageByNamespace(ci *CollectorImage) bool {
 		isNamespaceFilter = false
 	}
 
-	isNamespaceFilterNegated, _ := regexp.MatchString(ci.NamespaceFilterNegated, ci.Namespace)
-	if ci.NamespaceFilterNegated == "" {
-		isNamespaceFilterNegated = false
-	} else {
-		isNamespaceFilterNegated = !isNamespaceFilterNegated
+	isNamespaceFilterNegated := false
+	isNamespaceFilterMatch, _ := regexp.MatchString(ci.NamespaceFilterNegated, ci.Namespace)
+	if ci.NamespaceFilterNegated != "" {
+		isNamespaceFilterNegated = isNamespaceFilterMatch
 	}
 
 	return ci.Skip || isNamespaceFilter || isNamespaceFilterNegated
