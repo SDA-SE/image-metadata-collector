@@ -7,7 +7,12 @@ We are looking forward to contributions. Take a look at our [Contribution Guidel
 The [SECURITY.md](SECURITY.md) includes information on responsible disclosure and security related topics like security patches.
 
 # Development
-## Image Collector
+## Local run
+```
+go run cmd/collector/main.go  --storage fs --environment-name test
+```
+
+## Image Collector Integration Test
 To perform integration tests for the image collector, you need a kind cluster:
 ```bash
 cd test_actions/imagecollector
