@@ -3,7 +3,7 @@ module github.com/SDA-SE/image-metadata-collector
 go 1.21
 
 require (
-	github.com/aws/aws-sdk-go v1.50.38
+	github.com/aws/aws-sdk-go v1.51.1
 	github.com/go-git/go-git/v5 v5.11.0
 	github.com/golang-jwt/jwt/v5 v5.2.1
 	github.com/rs/zerolog v1.32.0
