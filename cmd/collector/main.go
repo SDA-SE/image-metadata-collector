@@ -84,8 +84,8 @@ func newCommand() *cobra.Command {
 
 	// Deployment wide Defaults
 	c.PersistentFlags().StringVar(&cfg.CollectorImage.Environment, "environment-name", "", "Name of the environment")
-	c.PersistentFlags().BoolVar(&cfg.CollectorImage.IsScanDependencyCheck, "is-scan-dependency-check", true, "Default enable/disable DependencyCheck scan")
-	c.PersistentFlags().BoolVar(&cfg.CollectorImage.IsScanDependencyTrack, "is-scan-dependency-track", false, "Default enable/disable DependencyTrack scan")
+	c.PersistentFlags().BoolVar(&cfg.CollectorImage.IsScanDependencyCheck, "is-scan-dependency-check", false, "Default enable/disable DependencyCheck scan")
+	c.PersistentFlags().BoolVar(&cfg.CollectorImage.IsScanDependencyTrack, "is-scan-dependency-track", true, "Default enable/disable DependencyTrack scan")
 	c.PersistentFlags().BoolVar(&cfg.CollectorImage.IsScanLifetime, "is-scan-lifetime", true, "Default enable/disable Lifetime scan")
 	c.PersistentFlags().BoolVar(&cfg.CollectorImage.IsScanBaseimageLifetime, "is-scan-baseimage-lifetime", true, "Default enable/disable Baseimage Lifetime scan")
 	c.PersistentFlags().BoolVar(&cfg.CollectorImage.IsScanDistroless, "is-scan-distroless", true, "Default enable/disable Distroless scan")
