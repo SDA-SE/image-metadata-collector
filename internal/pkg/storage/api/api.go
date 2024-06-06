@@ -2,6 +2,8 @@ package api
 
 import (
 	"bytes"
+	"crypto/sha256"
+	"encoding/hex"
 	"fmt"
 	"github.com/rs/zerolog/log"
 	"net/http"
@@ -22,7 +24,9 @@ func (api ApiConfig) Write(content []byte) (int, error) {
 		return 0, err
 	}
 
-	log.Debug().Str("ApiKeySha256", api.ApiKey).Msgf("ApiKey sha256")
+	hashedKey := sha256.Sum256([]byte(api.ApiKey))
+	hashedKeyStr := hex.EncodeToString(hashedKey[:])
+	log.Debug().Str("ApiKeySha256", hashedKeyStr).Msgf("ApiKey sha256")
 	log.Debug().Msgf("ApiSignature: %s", api.ApiSignature)
 
 	request.Header.Set("x-api-key", api.ApiKey)
