@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"github.com/rs/zerolog/log"
 	"net/http"
+	"crypto/sha256"
 )
 
 type ApiConfig struct {
@@ -22,6 +23,9 @@ func (api ApiConfig) Write(content []byte) (int, error) {
 		return 0, err
 	}
 
+	log.Debug.Msgs("ApiSignature: %s", api.ApiSignature)
+	log.Debug.Msgs("ApiKey sha256: %s", sha256.Sum256(api.ApiSignature))
+	
 	request.Header.Set("x-api-key", api.ApiKey)
 	request.Header.Set("x-api-signature", api.ApiSignature)
 	request.Header.Set("Content-Type", "application/json")
