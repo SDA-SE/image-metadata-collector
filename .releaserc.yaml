@@ -4,5 +4,5 @@ plugins:
   - "@semantic-release/release-notes-generator"
   - "@semantic-release/git"
   - "@semantic-release/github"
-preset:
-  version: '1.2.0'
+tagFormat: '${version}'
+
