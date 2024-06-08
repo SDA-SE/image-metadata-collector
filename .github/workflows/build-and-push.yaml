@@ -20,8 +20,11 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: "lts/*"
+      - name: Install -g semantic-release
+        run: npm install semantic-release
+
       - name: Release Dry
-        run: npx semantic-release --branches 'main develop' --dry-run true
+        run: npm install semantic-release --branches 'main develop' --dry-run true
 
       # TODO: Discuss testing strategy and change this step accordingly
       # e.g. Test in Docker Image, Kind Cluster, ...
