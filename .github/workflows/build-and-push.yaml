@@ -24,7 +24,7 @@ jobs:
         run: npm install semantic-release
 
       - name: Release Dry
-        run: npm install semantic-release --branches 'main develop' --dry-run true
+        run: npm install semantic-release --dry-run
 
       # TODO: Discuss testing strategy and change this step accordingly
       # e.g. Test in Docker Image, Kind Cluster, ...
