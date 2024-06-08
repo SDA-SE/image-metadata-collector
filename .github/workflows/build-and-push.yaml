@@ -17,11 +17,11 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Setup Node.js
-        uses: actions/setup-node@v3
+        uses: actions/setup-node@v4
         with:
           node-version: "lts/*"
       - name: Install -g semantic-release
-        run: npm install semantic-release
+        run: sudo npm install -g semantic-release
 
       - name: Release Dry
         run: semantic-release --dry-run
