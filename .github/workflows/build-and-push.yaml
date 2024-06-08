@@ -21,16 +21,8 @@ jobs:
         with:
           node-version: 14
 
-      - name: Install Semantic release
-        run: |
-          sudo npm install -g \
-            semantic-release@24.0.0 \
-            @semantic-release/git@10.0.1 \
-            @semantic-release/release-notes-generator@14.0.0 \
-            @semantic-release/github@10.0.6
-
       - name: Release Dry
-        run: semantic-release --branches 'master develop' --dry-run true
+        run: npx semantic-release --branches 'master develop' --dry-run true
 
       # TODO: Discuss testing strategy and change this step accordingly
       # e.g. Test in Docker Image, Kind Cluster, ...
