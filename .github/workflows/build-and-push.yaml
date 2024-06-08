@@ -32,6 +32,17 @@ jobs:
         run: semantic-release --dry-run
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PUBLISH_TOKEN_ID }}
+
+      - name: Get Semantic Release Version
+        id: get-version
+        run: |
+          branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}
+          if [ "${branch}" == "main" ]; then
+            echo "::set-output name=version::$(grep -oP '\[\d+\.\d+\.\d+\]' CHANGELOG.md | tr -d '[]')"
+          else
+            echo "::set-output name=version::${branch}"
+          fi
+
       # TODO: Discuss testing strategy and change this step accordingly
       # e.g. Test in Docker Image, Kind Cluster, ...
       - name: Set up Go for Tests
@@ -58,9 +69,7 @@ jobs:
           context: .
           push: true
           platforms: linux/amd64,linux/arm64
-          tags: ${{ env.REPOSITORY }}:${{ needs.dry-release.outputs.new_version }}
-
-
+          tags: ${{ env.REPOSITORY }}:${{ steps.get-version.outputs.version }}
 
       - name: Release and Publish
         run: semantic-release
