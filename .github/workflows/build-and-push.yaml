@@ -2,7 +2,6 @@ name: Build and publish Docker image to quay.io
 on:
   push:
     branches:
-      # TODO: Remove develop after stable build on main is available
       - 'develop'
       - 'main'
   pull_request:
@@ -13,7 +12,7 @@ env:
 jobs:
   build:
     runs-on: ubuntu-latest
-    steps:    
+    steps:
       - name: Checkout branch
         uses: actions/checkout@v4
 
@@ -29,10 +28,10 @@ jobs:
             @semantic-release/git@10.0.0 \
             @semantic-release/release-notes-generator@10.0.2 \
             @semantic-release/github@8.0.0
-            
+
       - name: Release Dry
-        run: semantic-release --dry-run
-          
+        run: semantic-release --dry-run --branches 'master develop'
+
       # TODO: Discuss testing strategy and change this step accordingly
       # e.g. Test in Docker Image, Kind Cluster, ...
       - name: Set up Go for Tests
