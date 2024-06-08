@@ -20,8 +20,13 @@ jobs:
         uses: actions/setup-node@v4
         with:
           node-version: "lts/*"
-      - name: Install -g semantic-release
-        run: sudo npm install -g semantic-release
+      - name: Install Semantic release
+        run: |
+          sudo npm install -g \
+            semantic-release@18.0.0 \
+            @semantic-release/git@10.0.0 \
+            @semantic-release/release-notes-generator@10.0.2 \
+            @semantic-release/github@8.0.0
 
       - name: Release Dry
         run: semantic-release --dry-run
