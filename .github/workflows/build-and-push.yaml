@@ -25,7 +25,8 @@ jobs:
 
       - name: Release Dry
         run: semantic-release --dry-run
-
+        env:
+          GITHUB_TOKEN: ${{ secrets.GH_PUBLISH_TOKEN_ID }}
       # TODO: Discuss testing strategy and change this step accordingly
       # e.g. Test in Docker Image, Kind Cluster, ...
       - name: Set up Go for Tests
