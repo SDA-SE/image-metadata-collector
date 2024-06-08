@@ -30,7 +30,7 @@ jobs:
             @semantic-release/github@8.0.0
 
       - name: Release Dry
-        run: semantic-release --branches 'master develop' #--dry-run true
+        run: semantic-release --branches 'master develop' --dry-run true
 
       # TODO: Discuss testing strategy and change this step accordingly
       # e.g. Test in Docker Image, Kind Cluster, ...
