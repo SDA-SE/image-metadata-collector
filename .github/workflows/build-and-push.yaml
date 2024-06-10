@@ -30,7 +30,7 @@ jobs:
 
       - name: Release Dry
         id: semantic-release-dry
-        run: semantic-release --dry-run
+        run: semantic-release --dry-run >> output.txt ; cat output.txt; echo "VERSION=$(cat output.txt | grep 'Release note for version' | grep -oP '\d+\.\d+\.\d+')" >> $GITHUB_ENV
         env:
           GITHUB_TOKEN: ${{ secrets.GH_PUBLISH_TOKEN_ID }}
 
@@ -39,8 +39,7 @@ jobs:
         run: |
           branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}
           if [ "${branch}" == "main" ]; then
-            echo "::set-output name=version::$(${{join(steps.semantic-release-dry.outputs.*, '\n')}}| grep 'Release note for version' | grep -oP '\d+\.\d+\.\d+')"
-            
+            echo "::set-output name=version::$VERSION)"
           else
             echo "::set-output name=version::${branch}"
           fi
