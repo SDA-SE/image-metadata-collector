@@ -1,0 +1,7 @@
+branches: ['main', 'develop']
+plugins:
+  - "@semantic-release/release-notes-generator"
+  - "@semantic-release/git"
+  - "@semantic-release/github"
+tagFormat: '${version}'
+
