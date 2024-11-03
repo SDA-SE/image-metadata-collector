@@ -34,7 +34,8 @@ func NewStorage(cfg *StorageConfig, environment string) (io.Writer, error) {
 	case "s3":
 		w, err = s3.NewS3(&cfg.S3Config, filename)
 	case "api":
-		w = cfg.ApiConfig
+		//w = cfg.ApiConfig
+		w, err = api.NewApi(&cfg.ApiConfig)
 	case "git":
 		w, err = git.NewGit(&cfg.GitConfig, filename)
 	case "fs":

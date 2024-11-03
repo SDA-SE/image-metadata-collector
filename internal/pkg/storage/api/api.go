@@ -7,12 +7,40 @@ import (
 	"fmt"
 	"github.com/rs/zerolog/log"
 	"net/http"
+	"strings"
+	"io"
 )
 
 type ApiConfig struct {
 	ApiKey       string
 	ApiSignature string
 	ApiEndpoint  string
+	HTTPHeaders []string
+}
+
+// NewApiStorage initializes and returns a new ApiConfig instance
+func NewApi(cfg *ApiConfig) (io.Writer, error) {
+	log.Info().Msgf("Initializing ApiConfig with: %+v", cfg)
+
+	if cfg.ApiKey == "" {
+		log.Info().Msg("Api Key not given, do not init ApiStorage")
+		return nil, fmt.Errorf("Missing Api Key")
+	}
+	if cfg.ApiSignature == "" {
+		log.Info().Msg("Api Signature not given, do not init ApiStorage")
+		return nil, fmt.Errorf("Missing Api Signature")
+	}
+	if cfg.ApiEndpoint == "" {
+		log.Info().Msg("Api Endpoint not given, do not init ApiStorage")
+		return nil, fmt.Errorf("Missing Api Endpoint")
+	}
+
+    return &ApiConfig{
+        ApiKey:       cfg.ApiKey,
+        ApiSignature: cfg.ApiSignature,
+        ApiEndpoint:  cfg.ApiEndpoint,
+        HTTPHeaders:  cfg.HTTPHeaders,
+    }, nil
 }
 
 // Write content to API Endpoint added to config
@@ -32,6 +60,15 @@ func (api ApiConfig) Write(content []byte) (int, error) {
 	request.Header.Set("x-api-key", api.ApiKey)
 	request.Header.Set("x-api-signature", api.ApiSignature)
 	request.Header.Set("Content-Type", "application/json")
+
+	// Add headers to request
+	for _, header := range api.HTTPHeaders {
+		headerParts := strings.Split(header, ":")
+		if len(headerParts) != 2 {
+			return 0, fmt.Errorf("Invalid header format: %s", header)
+		}
+		request.Header.Set(headerParts[0], headerParts[1])
+	}
 
 	res, err := client.Do(request)
 
