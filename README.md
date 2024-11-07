@@ -1,5 +1,5 @@
 # image-metadata-collector
-
+Collects namespaces and namespaces including responsible team and contact info through annotations/labels from Kubernetes clusters. Results are available in JSON and can be uploaded to S3, github and an API.
 # Contributing
 We are looking forward to contributions. Take a look at our [Contribution Guidelines](CONTRIBUTING.md) before submitting Pull Requests.
 
