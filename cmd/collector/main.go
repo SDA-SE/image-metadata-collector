@@ -77,9 +77,9 @@ func newCommand() *cobra.Command {
 	c.PersistentFlags().StringVar(&cfg.StorageConfig.ApiSignature, "api-signature", "", "API Signature")
 	c.PersistentFlags().StringVar(&cfg.StorageConfig.ApiEndpoint, "api-endpoint", "", "API Endpoint, e.g. https://example.io/v1/account/$ACCOUNT/cluster/$CLUSTER/image-collector-report/images")
 	// HTTP Headers
-	// use like: AppName --http-headers "Authorization:Bearer token123,Content-Type:application/json"
-    c.Flags().StringSliceVar(&cfg.StorageConfig.HTTPHeaders, "http-headers", []string{}, "Comma-separated list of HTTP headers in 'key:value' format.")
-	
+	// use like: --http-header "Authorization:Bearer token" --http-header "Content-Type:application/json"
+	pflag.StringArrayVar(&cfg.StorageConfig.HTTPHeaders, "http-header", []string{}, "List of HTTP headers in 'key:value' format. Repeat flag for multiple headers.")
+
 	// Annotation Key/Name Config
 	c.PersistentFlags().StringVar(&cfg.AnnotationNames.Base, "annotation-name-base", "sdase.org/", "Annotation name for general annotations")
 	c.PersistentFlags().StringVar(&cfg.AnnotationNames.Scans, "annotation-name-scans", "clusterscanner.sdase.org/", "Annotation name for scan related annotations")

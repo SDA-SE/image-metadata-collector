@@ -5,17 +5,18 @@ import (
 	"crypto/sha256"
 	"encoding/hex"
 	"fmt"
-	"github.com/rs/zerolog/log"
+	"io"
 	"net/http"
 	"strings"
-	"io"
+
+	"github.com/rs/zerolog/log"
 )
 
 type ApiConfig struct {
 	ApiKey       string
 	ApiSignature string
 	ApiEndpoint  string
-	HTTPHeaders []string
+	HTTPHeaders  []string
 }
 
 // NewApiStorage initializes and returns a new ApiConfig instance
@@ -35,12 +36,12 @@ func NewApi(cfg *ApiConfig) (io.Writer, error) {
 		return nil, fmt.Errorf("Missing Api Endpoint")
 	}
 
-    return &ApiConfig{
-        ApiKey:       cfg.ApiKey,
-        ApiSignature: cfg.ApiSignature,
-        ApiEndpoint:  cfg.ApiEndpoint,
-        HTTPHeaders:  cfg.HTTPHeaders,
-    }, nil
+	return &ApiConfig{
+		ApiKey:       cfg.ApiKey,
+		ApiSignature: cfg.ApiSignature,
+		ApiEndpoint:  cfg.ApiEndpoint,
+		HTTPHeaders:  cfg.HTTPHeaders,
+	}, nil
 }
 
 // Write content to API Endpoint added to config
@@ -63,9 +64,9 @@ func (api ApiConfig) Write(content []byte) (int, error) {
 
 	// Add headers to request
 	for _, header := range api.HTTPHeaders {
-		headerParts := strings.Split(header, ":")
+		headerParts := strings.SplitN(header, ":", 2)
 		if len(headerParts) != 2 {
-			return 0, fmt.Errorf("Invalid header format: %s", header)
+			return 0, fmt.Errorf("invalid header format: %s", header)
 		}
 		request.Header.Set(headerParts[0], headerParts[1])
 	}
@@ -79,7 +80,7 @@ func (api ApiConfig) Write(content []byte) (int, error) {
 
 	if res.StatusCode != 200 {
 		log.Error().Msgf("Error sending request, got StatusCode: %s", res.Status)
-		return 0, fmt.Errorf("Got a Status '%s' instead of an '200 OK' response for API request", res.Status)
+		return 0, fmt.Errorf("got a Status '%s' instead of an '200 OK' response for API request", res.Status)
 	}
 
 	return len(content), nil
