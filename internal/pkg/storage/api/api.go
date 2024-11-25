@@ -21,8 +21,6 @@ type ApiConfig struct {
 
 // NewApiStorage initializes and returns a new ApiConfig instance
 func NewApi(cfg *ApiConfig) (io.Writer, error) {
-	log.Info().Msgf("Initializing ApiConfig with: %+v", cfg)
-
 	if cfg.ApiKey == "" {
 		log.Info().Msg("Api Key not given, do not init ApiStorage")
 		return nil, fmt.Errorf("Missing Api Key")
@@ -55,8 +53,6 @@ func (api ApiConfig) Write(content []byte) (int, error) {
 
 	hashedKey := sha256.Sum256([]byte(api.ApiKey))
 	hashedKeyStr := hex.EncodeToString(hashedKey[:])
-	log.Debug().Str("ApiKeySha256", hashedKeyStr).Msgf("ApiKey sha256")
-	log.Debug().Msgf("ApiSignature: %s", api.ApiSignature)
 
 	request.Header.Set("x-api-key", api.ApiKey)
 	request.Header.Set("x-api-signature", api.ApiSignature)
