@@ -2,8 +2,6 @@ package api
 
 import (
 	"bytes"
-	"crypto/sha256"
-	"encoding/hex"
 	"fmt"
 	"io"
 	"net/http"
@@ -51,8 +49,8 @@ func (api ApiConfig) Write(content []byte) (int, error) {
 		return 0, err
 	}
 
-	hashedKey := sha256.Sum256([]byte(api.ApiKey))
-	hashedKeyStr := hex.EncodeToString(hashedKey[:])
+	//hashedKey := sha256.Sum256([]byte(api.ApiKey))
+	//hashedKeyStr := hex.EncodeToString(hashedKey[:])
 
 	request.Header.Set("x-api-key", api.ApiKey)
 	request.Header.Set("x-api-signature", api.ApiSignature)
