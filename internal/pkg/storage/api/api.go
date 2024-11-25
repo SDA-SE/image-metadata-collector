@@ -75,6 +75,8 @@ func (api ApiConfig) Write(content []byte) (int, error) {
 	if res.StatusCode != 200 {
 		log.Error().Msgf("Error sending request, got StatusCode: %s", res.Status)
 		return 0, fmt.Errorf("got a Status '%s' instead of an '200 OK' response for API request", res.Status)
+	} else {
+		log.Info().Msgf("Upload Succeeded, Status: %s", res.Status)
 	}
 
 	return len(content), nil
