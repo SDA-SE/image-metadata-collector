@@ -54,6 +54,7 @@ func newCommand() *cobra.Command {
 	// Run Configuration
 	c.PersistentFlags().BoolVar(&cfg.Debug, "debug", false, "Set logging level to debug, default logging level is info")
 	c.Flags().StringSliceVarP(&cfg.RunConfig.ImageFilter, "image-filter", "s", []string{}, "Images to set the skip flag to true. Images as regex comma seperated without spaces. e.g. 'mock-service,mongo,openpolicyagent/opa,/istio/")
+
 	// Kubernetes Config
 	c.PersistentFlags().StringVar(&cfg.KubeConfig.ConfigFile, "kube-config", "", "absolute path to the kubeconfig file")
 	c.PersistentFlags().StringVar(&cfg.KubeConfig.Context, "kube-context", "", "The context to use to talk to the Kubernetes apiserver. If unset defaults to whatever your current-context is (kubectl config current-context)")
@@ -75,6 +76,9 @@ func newCommand() *cobra.Command {
 	c.PersistentFlags().StringVar(&cfg.StorageConfig.ApiKey, "api-key", "", "API Key")
 	c.PersistentFlags().StringVar(&cfg.StorageConfig.ApiSignature, "api-signature", "", "API Signature")
 	c.PersistentFlags().StringVar(&cfg.StorageConfig.ApiEndpoint, "api-endpoint", "", "API Endpoint, e.g. https://example.io/v1/account/$ACCOUNT/cluster/$CLUSTER/image-collector-report/images")
+	// HTTP Headers
+	// use like: --http-header "Authorization:Bearer token" --http-header "Content-Type:application/json"
+	pflag.StringArrayVar(&cfg.StorageConfig.HTTPHeaders, "http-header", []string{}, "List of HTTP headers in 'key:value' format. Repeat flag for multiple headers.")
 
 	// Annotation Key/Name Config
 	c.PersistentFlags().StringVar(&cfg.AnnotationNames.Base, "annotation-name-base", "sdase.org/", "Annotation name for general annotations")
@@ -151,7 +155,6 @@ func run(cfg *config.Config) {
 	k8client := kubeclient.NewClient(&cfg.KubeConfig)
 
 	storage, err := storage.NewStorage(&cfg.StorageConfig, cfg.Environment)
-
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("Could not create storage for: " + cfg.StorageConfig.StorageFlag)
 	}
