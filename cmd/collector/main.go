@@ -167,17 +167,27 @@ func run(cfg *config.Config) {
 	k8Images, err := k8client.GetAllImagesForAllNamespaces()
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("Could not retrieve images from K8")
+	} else {
+		// debug log all retrieved images
+		log.Debug().Interface("images", k8Images).Msg("")
+		log.Info().Msg("Images retrieved from K8")
 	}
 
 	// Convert & Clean k8 images to collector images
 	images, err := collector.ConvertImages(k8Images, collectorDefaults, annotationNames, runConfig)
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("Could not collect images")
+	} else {
+		log.Debug().Interface("images", images).Msg("")
+		log.Info().Msg("Images collected & converted")
 	}
 
 	// Store images
 	err = collector.Store(images, storage, collector.JsonIndentMarshal)
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("Could not store collected images")
+	} else {
+		log.Info().Msg("Images collected and stored")
+		log.Debug().Interface("storage", storage).Msg("using storage")
 	}
 }
