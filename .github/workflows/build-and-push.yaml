@@ -40,6 +40,11 @@ jobs:
           branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}
           sanitized_branch=$(echo "${branch}" | tr '/' '-')
           if [ "${branch}" == "main" ]; then
+            if [ -z "${{ steps.semantic-release-dry.outputs.VERSION }}" ]; then
+              VERSION=$(cat output.txt | grep 'Release note for version' | grep -oP '\d+\.\d+\.\d+')
+            else
+              VERSION=${{ steps.semantic-release-dry.outputs.VERSION }}
+            fi
             echo "::set-output name=version::$VERSION"
           else
             echo "::set-output name=version::${sanitized_branch}"
