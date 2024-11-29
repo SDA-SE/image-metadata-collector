@@ -41,7 +41,8 @@ jobs:
           sanitized_branch=$(echo "${branch}" | tr '/' '-')
           if [ "${branch}" == "main" ]; then
             if [ -z "${{ steps.semantic-release-dry.outputs.VERSION }}" ]; then
-              VERSION=$(cat output.txt | grep 'Release note for version' | grep -oP '\d+\.\d+\.\d+')
+              echo "semantic release not detecting a new version, using latest tag"
+              VERSION=$(git describe --tags --abbrev=0)
             else
               VERSION=${{ steps.semantic-release-dry.outputs.VERSION }}
             fi
