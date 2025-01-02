@@ -3,7 +3,9 @@ package main
 import (
 	"flag"
 	"fmt"
+	"net/http"
 	"strings"
+	"time"
 
 	"github.com/SDA-SE/image-metadata-collector/internal/collector"
 	"github.com/SDA-SE/image-metadata-collector/internal/config"
@@ -17,14 +19,17 @@ import (
 	"github.com/spf13/viper"
 )
 
-const AppName = "collector"
-
-const ShortDescription = "Collect images"
-const LongDescription = `Image Metadata Collector is a tool that will scan
+const (
+	AppName          = "collector"
+	ShortDescription = "Collect images"
+	LongDescription  = `Image Metadata Collector is a tool that will scan
 	'Namespace's,
 	and 'Pod's
 	for image and team information.
 	`
+	istioQuitEndpoint = "http://localhost:15020/quitquitquit"
+	timeout           = 5 * time.Second
+)
 
 func main() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
@@ -157,8 +162,26 @@ func bindFlags(cmd *cobra.Command, v *viper.Viper) {
 	})
 }
 
+// send a terminating QUITQUITQUIT signal to the Istio sidecar
+func sendQuitQuitQuit() error {
+	client := &http.Client{Timeout: timeout}
+	resp, err := client.Post(istioQuitEndpoint, "text/plain", nil)
+	if err != nil {
+		return fmt.Errorf("failed to send QUITQUITQUIT to Istio sidecar: %v", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("unexpected status code from Istio sidecar: %d", resp.StatusCode)
+	}
+
+	log.Info().Msg("Successfully sent QUITQUITQUIT to Istio sidecar")
+	return nil
+}
+
 // run starts the collector and metrics endpoint
 func run(cfg *config.Config) {
+
 	k8client := kubeclient.NewClient(&cfg.KubeConfig)
 
 	storage, err := storage.NewStorage(&cfg.StorageConfig, cfg.Environment)
@@ -197,4 +220,11 @@ func run(cfg *config.Config) {
 		log.Info().Msg("Images collected and stored")
 		log.Debug().Interface("storage", storage).Msg("using storage")
 	}
+
+	// Before exiting, send QUITQUITQUIT to Istio sidecar
+	if err := sendQuitQuitQuit(); err != nil {
+		log.Fatal().Err(err).Msg("Error sending QUITQUITQUIT to Istio sidecar")
+	}
+
+	log.Info().Msg("Collector finished")
 }
