@@ -44,7 +44,19 @@ func newCommand() *cobra.Command {
 		Short: ShortDescription,
 		Long:  LongDescription,
 		PersistentPreRunE: func(cmd *cobra.Command, args []string) error {
-			return initializeConfig(cmd)
+			// Initialize the configuration
+			if err := initializeConfig(cmd); err != nil {
+				return err
+			}
+
+			// Set the logging level based on the debug flag
+			if cfg.Debug {
+				zerolog.SetGlobalLevel(zerolog.DebugLevel)
+			} else {
+				zerolog.SetGlobalLevel(zerolog.InfoLevel)
+			}
+
+			return nil
 		},
 		Run: func(cmd *cobra.Command, args []string) {
 			run(cfg)
@@ -109,11 +121,6 @@ func newCommand() *cobra.Command {
 	c.PersistentFlags().StringVar(&cfg.CollectorImage.Email, "email", "", "Default email to use")
 	c.PersistentFlags().StringVar(&cfg.CollectorImage.NamespaceFilter, "namespace-filter", "", "Default namespace filter to use")
 	c.PersistentFlags().StringVar(&cfg.CollectorImage.NamespaceFilterNegated, "negated_namespace_filter", "", "Default negated namespace filter to use")
-
-	zerolog.SetGlobalLevel(zerolog.InfoLevel)
-	if cfg.Debug {
-		zerolog.SetGlobalLevel(zerolog.DebugLevel)
-	}
 
 	c.PersistentFlags().AddGoFlagSet(flag.CommandLine)
 	return c
