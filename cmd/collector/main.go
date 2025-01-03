@@ -215,4 +215,11 @@ func run(cfg *config.Config) {
 	}
 	log.Info().Msg("Images collected and stored")
 	log.Debug().Interface("storage", storage).Msg("using storage")
+
+	// Before exiting, send QUITQUITQUIT to Istio sidecar
+	if err := sendQuitQuitQuit(); err != nil {
+		log.Fatal().Err(err).Msg("Error sending QUITQUITQUIT to Istio sidecar")
+	}
+
+	log.Info().Msg("Collector finished")
 }
