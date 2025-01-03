@@ -52,8 +52,6 @@ func newCommand() *cobra.Command {
 			// Set the logging level based on the debug flag
 			if cfg.Debug {
 				zerolog.SetGlobalLevel(zerolog.DebugLevel)
-			} else {
-				zerolog.SetGlobalLevel(zerolog.InfoLevel)
 			}
 
 			return nil
@@ -184,17 +182,15 @@ func run(cfg *config.Config) {
 	images, err := collector.ConvertImages(k8Images, collectorDefaults, annotationNames, runConfig)
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("Could not collect images")
-	} else {
-		log.Debug().Interface("images", images).Msg("")
-		log.Info().Msg("Images collected & converted")
 	}
+	log.Debug().Interface("images", images).Msg("")
+	log.Info().Msg("Images collected & converted")
 
 	// Store images
 	err = collector.Store(images, storage, collector.JsonIndentMarshal)
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("Could not store collected images")
-	} else {
-		log.Info().Msg("Images collected and stored")
-		log.Debug().Interface("storage", storage).Msg("using storage")
 	}
+	log.Info().Msg("Images collected and stored")
+	log.Debug().Interface("storage", storage).Msg("using storage")
 }
