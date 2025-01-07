@@ -27,7 +27,7 @@ const (
 	and 'Pod's
 	for image and team information.
 	`
-	istioQuitEndpoint = "http://localhost:15020/quitquitquit"
+	//istioQuitEndpoint = "http://localhost:15020/quitquitquit"
 	timeout           = 5 * time.Second
 )
 
@@ -125,6 +125,9 @@ func newCommand() *cobra.Command {
 	c.PersistentFlags().StringVar(&cfg.CollectorImage.NamespaceFilter, "namespace-filter", "", "Default namespace filter to use")
 	c.PersistentFlags().StringVar(&cfg.CollectorImage.NamespaceFilterNegated, "negated_namespace_filter", "", "Default negated namespace filter to use")
 
+	// Add istioQuitEndpoint to the config structure
+	c.PersistentFlags().StringVar(&cfg.IstioQuitEndpoint, "istio-quit-endpoint", "http://localhost:15020/quitquitquit", "URL for the Istio sidecar quit endpoint")
+
 	c.PersistentFlags().AddGoFlagSet(flag.CommandLine)
 	return c
 }
@@ -163,7 +166,7 @@ func bindFlags(cmd *cobra.Command, v *viper.Viper) {
 // send a terminating QUITQUITQUIT signal to the Istio sidecar
 func sendQuitQuitQuit() error {
 	client := &http.Client{Timeout: timeout}
-	resp, err := client.Post(istioQuitEndpoint, "text/plain", nil)
+	resp, err := client.Post(cfg.IstioQuitEndpoint, "text/plain", nil)
 	if err != nil {
 		return fmt.Errorf("failed to send QUITQUITQUIT to Istio sidecar: %v", err)
 	}
