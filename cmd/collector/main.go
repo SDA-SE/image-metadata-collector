@@ -164,9 +164,9 @@ func bindFlags(cmd *cobra.Command, v *viper.Viper) {
 }
 
 // send a terminating QUITQUITQUIT signal to the Istio sidecar
-func sendQuitQuitQuit() error {
+func sendQuitQuitQuit(endpoint string) error {
 	client := &http.Client{Timeout: timeout}
-	resp, err := client.Post(cfg.IstioQuitEndpoint, "text/plain", nil)
+	resp, err := client.Post(endpoint, "text/plain", nil)
 	if err != nil {
 		return fmt.Errorf("failed to send QUITQUITQUIT to Istio sidecar: %v", err)
 	}
@@ -220,7 +220,7 @@ func run(cfg *config.Config) {
 	log.Debug().Interface("storage", storage).Msg("using storage")
 
 	// Before exiting, send QUITQUITQUIT to Istio sidecar
-	if err := sendQuitQuitQuit(); err != nil {
+	if err := sendQuitQuitQuit(cfg.IstioQuitEndpoint); err != nil {
 		log.Fatal().Err(err).Msg("Error sending QUITQUITQUIT to Istio sidecar")
 	}
 
