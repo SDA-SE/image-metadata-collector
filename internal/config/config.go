@@ -14,4 +14,6 @@ type Config struct {
 	collector.RunConfig
 
 	Debug bool
+	// added for istioquitquitquit feature
+	IstioQuitEndpoint string
 }
