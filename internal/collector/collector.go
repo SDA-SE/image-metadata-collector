@@ -45,7 +45,7 @@ type CollectorImage struct {
 	IsScanDependencyTrack            bool  `json:"is_scan_dependency_track"`
 	IsScanDistroless                 bool  `json:"is_scan_distroless"`
 	IsScanLifetime                   bool  `json:"is_scan_lifetime"`
-	IsScanMalware                    bool  `json:"is_scan_maleware"`
+	IsScanMalware                    bool  `json:"is_scan_malware"`
 	IsScanNewVersion                 bool  `json:"is_scan_new_version"`
 	IsScanRunAsRoot                  bool  `json:"is_scan_runasroot"`
 	IsPotentiallyRunningAsRoot       bool  `json:"is_scan_potentially_running_as_root"`
