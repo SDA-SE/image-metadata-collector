@@ -20,6 +20,7 @@ require (
 
 require (
 	dario.cat/mergo v1.0.0 // indirect
+	github.com/CycloneDX/cyclonedx-go v0.9.2 // indirect
 	github.com/Microsoft/go-winio v0.6.2 // indirect
 	github.com/ProtonMail/go-crypto v1.1.5 // indirect
 	github.com/cloudflare/circl v1.6.0 // indirect
