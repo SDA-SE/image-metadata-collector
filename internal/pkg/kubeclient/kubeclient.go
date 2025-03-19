@@ -151,7 +151,7 @@ func (c *Client) GetImages(namespaces *[]Namespace) (*[]Image, error) {
 				}
 
 				image := Image{
-					Image:         imageName,
+					Image:         status.Image,
 					ImageId:       status.ImageID,
 					NamespaceName: namespace.Name,
 					Labels:        labels,
