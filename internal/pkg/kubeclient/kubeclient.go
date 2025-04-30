@@ -144,7 +144,7 @@ func (c *Client) GetImages(namespaces *[]Namespace) (*[]Image, error) {
 				// Don't create an image if no image name exists
 				if containerImage == "" && status.Image == "" {
 					continue
-				} else if containerImage == "" {
+				} else if status.Image != "" {
 					imageName = status.Image
 				} else {
 					imageName = containerImage
