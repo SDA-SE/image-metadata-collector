@@ -32,7 +32,7 @@ jobs:
         id: semantic-release-dry
         run: semantic-release --dry-run >> output.txt ; cat output.txt; echo "VERSION=$(cat output.txt | grep 'Release note for version' | grep -oP '\d+\.\d+\.\d+')" >> $GITHUB_ENV
         env:
-          GITHUB_TOKEN: "${{ secrets.GH_PUBLISH_TOKEN_ID }}"
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Get Semantic Release Version
         id: get-version
@@ -82,4 +82,4 @@ jobs:
       - name: Release and Publish
         run: semantic-release
         env:
-          GITHUB_TOKEN: ${{ secrets.GH_PUBLISH_TOKEN_ID }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
