@@ -2,6 +2,7 @@ package api
 
 import (
 	"bytes"
+	"compress/gzip"
 	"fmt"
 	"io"
 	"net/http"
@@ -21,33 +22,83 @@ type ApiConfig struct {
 func NewApi(cfg *ApiConfig) (io.Writer, error) {
 	if cfg.ApiKey == "" {
 		log.Info().Msg("Api Key not given, do not init ApiStorage")
-		return nil, fmt.Errorf("Missing Api Key")
+		return nil, fmt.Errorf("missing Api Key")
 	}
 	if cfg.ApiSignature == "" {
 		log.Info().Msg("Api Signature not given, do not init ApiStorage")
-		return nil, fmt.Errorf("Missing Api Signature")
+		return nil, fmt.Errorf("missing Api Signature")
 	}
 	if cfg.ApiEndpoint == "" {
 		log.Info().Msg("Api Endpoint not given, do not init ApiStorage")
-		return nil, fmt.Errorf("Missing Api Endpoint")
+		return nil, fmt.Errorf("missing Api Endpoint")
 	}
 
 	return &ApiConfig{
 		ApiKey:       cfg.ApiKey,
 		ApiSignature: cfg.ApiSignature,
 		ApiEndpoint:  cfg.ApiEndpoint,
-		HTTPHeaders:  cfg.HTTPHeaders,
+		HTTPHeaders:  append([]string(nil), cfg.HTTPHeaders...),
 	}, nil
+}
+
+func CompressJSONBytes(content []byte) ([]byte, error) {
+	// Create a buffer to hold compressed data
+	var buf bytes.Buffer
+
+	// Create gzip writer
+	gzipWriter, err := gzip.NewWriterLevel(&buf, gzip.BestCompression)
+	if err != nil {
+		return nil, fmt.Errorf("failed to create gzip writer: %w", err)
+	}
+
+	// Write JSON data to gzip writer
+	_, err = gzipWriter.Write(content)
+	if err != nil {
+		//nolint:errcheck // Close error not critical in this context
+		gzipWriter.Close()
+		return nil, fmt.Errorf("failed to write compressed data: %w", err)
+	}
+
+	// Close the gzip writer to flush data
+	err = gzipWriter.Close()
+	if err != nil {
+		return nil, fmt.Errorf("failed to close gzip writer: %w", err)
+	}
+
+	return buf.Bytes(), nil
 }
 
 // Write content to API Endpoint added to config
 func (api ApiConfig) Write(content []byte) (int, error) {
 	client := &http.Client{}
 
-	request, err := http.NewRequest(http.MethodPut, api.ApiEndpoint, bytes.NewBuffer(content))
+	contentToSend := content
+
+	// API is max 6MB per request
+	contentSize := len(content)
+	addCompressHeader := false
+	if contentSize > 6*1024*1024 {
+		log.Info().Msgf("Content size is too large (%d bytes) compressing it", contentSize)
+		compressedContent, err := CompressJSONBytes(content)
+		if err != nil {
+			return 0, err
+		}
+		addCompressHeader = true
+		contentSize = len(compressedContent)
+		contentToSend = compressedContent
+		log.Debug().Msgf("Compressed content size is %d bytes", contentSize)
+	}
+
+	if contentSize > 6*1024*1024 {
+		return 0, fmt.Errorf("content size is too large (%d bytes)", contentSize)
+	}
+
+	request, err := http.NewRequest(http.MethodPut, api.ApiEndpoint, bytes.NewBuffer(contentToSend))
 	if err != nil {
 		return 0, err
 	}
+
+	log.Debug().Msgf("Requests content size %d bytes", request.ContentLength)
 
 	//hashedKey := sha256.Sum256([]byte(api.ApiKey))
 	//hashedKeyStr := hex.EncodeToString(hashedKey[:])
@@ -55,6 +106,9 @@ func (api ApiConfig) Write(content []byte) (int, error) {
 	request.Header.Set("x-api-key", api.ApiKey)
 	request.Header.Set("x-api-signature", api.ApiSignature)
 	request.Header.Set("Content-Type", "application/json")
+	if addCompressHeader {
+		request.Header.Set("Content-Encoding", "gzip")
+	}
 
 	// Add headers to request
 	for _, header := range api.HTTPHeaders {
