@@ -5,4 +5,3 @@ resources:
   - namespace.yml
   - argocd.project.yml
   - minio-operator.yml
-

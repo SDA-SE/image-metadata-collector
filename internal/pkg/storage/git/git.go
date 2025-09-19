@@ -7,15 +7,17 @@ import (
 	"time"
 
 	"encoding/json"
-	"github.com/rs/zerolog/log"
 	"net/http"
 	"path/filepath"
+
+	"github.com/rs/zerolog/log"
+
+	"strconv"
 
 	goGit "github.com/go-git/go-git/v5"
 	"github.com/go-git/go-git/v5/plumbing/object"
 	"github.com/go-git/go-git/v5/plumbing/transport/ssh"
 	"github.com/golang-jwt/jwt/v5"
-	"strconv"
 )
 
 type GitConfig struct {
@@ -96,7 +98,7 @@ func NewGit(cfg *GitConfig, filename string) (io.Writer, error) {
 
 	if cfg.GitUrl == "" {
 		log.Info().Msg("git url not given, do not init git")
-		return nil, fmt.Errorf("Missing git Url")
+		return nil, fmt.Errorf("missing git Url")
 	}
 
 	if _, err := os.Stat(cfg.GitPrivateKeyFile); err != nil {
@@ -108,7 +110,7 @@ func NewGit(cfg *GitConfig, filename string) (io.Writer, error) {
 		err = os.RemoveAll(cfg.GitDirectory)
 
 		if err != nil {
-			log.Warn().Err(err).Msg("Could not remove directory")
+			log.Warn().Err(err).Msg("could not remove directory")
 		}
 	}
 

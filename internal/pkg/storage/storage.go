@@ -46,7 +46,7 @@ func NewStorage(cfg *StorageConfig, environment string) (io.Writer, error) {
 		w = os.Stdout
 	default:
 		w = nil
-		err = fmt.Errorf("Storage flag %s is not supported", cfg.StorageFlag)
+		err = fmt.Errorf("storage flag %s is not supported", cfg.StorageFlag)
 	}
 
 	return w, err

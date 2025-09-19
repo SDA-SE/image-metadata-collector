@@ -140,14 +140,14 @@ func isSkipImageByNamespace(ci *CollectorImage) bool {
 
 // applies replacement and other rules to specific fields
 func cleanCollectorImage(ci *CollectorImage, imageFilter *RunConfig) {
-	ci.Image = strings.Replace(ci.Image, "docker-pullable://", "", -1)
+	ci.Image = strings.ReplaceAll(ci.Image, "docker-pullable://", "")
 	ci.ImageId = cleanCollectorImageId(ci)
 
 	ci.Skip = isSkipImage(ci, imageFilter)
 }
 
 func cleanCollectorImageId(ci *CollectorImage) string {
-	var imageId = strings.Replace(ci.ImageId, "docker-pullable://", "", -1)
+	var imageId = strings.ReplaceAll(ci.ImageId, "docker-pullable://", "")
 	if imageId == "" {
 		log.Info().Msgf("ImageId is empty for image %s (ns %s). Using image name as imageId", ci.Image, ci.Namespace)
 		imageId = ci.Image

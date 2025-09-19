@@ -5,4 +5,3 @@ namespace: shire-pr-80
 resources:
   - namespace.yaml
   - deployment.yaml
-

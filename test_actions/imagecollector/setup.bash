@@ -75,5 +75,3 @@ for fileToCheck in ${filesToCheck}; do
   #compareDownloadedFileWithExpected "${fileToCheck}" # Disabled due to deacitiviation of labels
   rm ${TMP_FOLDER}/${fileToCheck}
 done
-
-
