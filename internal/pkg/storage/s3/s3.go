@@ -2,16 +2,18 @@ package s3
 
 import (
 	"bytes"
+	"context"
 	"fmt"
-	"github.com/aws/aws-sdk-go/aws"
-	"github.com/aws/aws-sdk-go/aws/session"
-	"github.com/aws/aws-sdk-go/service/s3/s3manager"
-	// "github.com/go-playground/validator/v10"
+	"strconv"
+
+	"github.com/aws/aws-sdk-go-v2/aws"
+	"github.com/aws/aws-sdk-go-v2/config"
+	"github.com/aws/aws-sdk-go-v2/credentials"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/service/s3"
+	"github.com/aws/smithy-go/logging"
 	"github.com/rs/zerolog"
 	"github.com/rs/zerolog/log"
-	// "os"
-	// "path"
-	"strconv"
 )
 
 type S3Config struct {
@@ -21,7 +23,7 @@ type S3Config struct {
 	S3Insecure   bool
 }
 
-type s3 struct {
+type s3Client struct {
 	bucket         string
 	endpoint       string
 	insecure       bool
@@ -30,16 +32,26 @@ type s3 struct {
 	fileName       string
 }
 
-// NewS3 creates a new S3Parameter instance.
-func NewS3(cfg *S3Config, fileName string) (*s3, error) {
+// zerologLogger adapts zerolog to Smithy logging.Logger
+type zerologLogger struct{}
 
-	forcePathStyle := false
-
-	if cfg.S3Endpoint != "" && !forcePathStyle {
-		forcePathStyle = true
+func (l zerologLogger) Logf(classification logging.Classification, format string, v ...interface{}) {
+	// Map AWS SDK log classes to zerolog levels
+	switch classification {
+	case logging.Debug:
+		log.Debug().Msgf(format, v...)
+	case logging.Warn:
+		log.Warn().Msgf(format, v...)
+	default:
+		log.Info().Msgf(format, v...)
 	}
+}
 
-	s3 := &s3{
+// NewS3 creates a new S3Parameter instance.
+func NewS3(cfg *S3Config, fileName string) (*s3Client, error) {
+	forcePathStyle := cfg.S3Endpoint != ""
+
+	s3c := &s3Client{
 		bucket:         cfg.S3BucketName,
 		endpoint:       cfg.S3Endpoint,
 		insecure:       cfg.S3Insecure,
@@ -48,57 +60,72 @@ func NewS3(cfg *S3Config, fileName string) (*s3, error) {
 		fileName:       fileName,
 	}
 
-	if s3.bucket == "" {
+	if s3c.bucket == "" {
 		return nil, fmt.Errorf("S3_BUCKET is not set")
 	}
 
-	return s3, nil
+	return s3c, nil
 }
 
-// Upload uploads the content to an S3 Bucket with a key consisting of the environmentName and the fileName.
-func (s3 s3) Write(content []byte) (int, error) {
+// Write uploads the content to an S3 Bucket with a key consisting of the fileName.
+func (s3c *s3Client) Write(content []byte) (int, error) {
+	ctx := context.Background()
 
-	insecureStr := strconv.FormatBool(s3.insecure)
+	insecureStr := strconv.FormatBool(s3c.insecure)
 	log.Info().Str("s3.insecure", insecureStr).Msg("in Upload")
 
-	sess, err := session.NewSession(&aws.Config{
-		DisableSSL:       aws.Bool(s3.insecure),
-		S3ForcePathStyle: aws.Bool(s3.forcePathStyle),
-		Region:           aws.String(s3.region),
-		LogLevel:         getAwsLoglevel(),
-		Endpoint:         aws.String(s3.endpoint),
-	})
+	var cfg aws.Config
+	var err error
 
-	if err != nil {
-		log.Error().Msg(fmt.Sprintf("Failed to create an aws session err: %v", err))
-		return len(content), err
+	// If we have a custom endpoint (like for testing or MinIO), use anonymous credentials
+	if s3c.endpoint != "" {
+		cfg, err = config.LoadDefaultConfig(ctx,
+			config.WithRegion(s3c.region),
+			config.WithCredentialsProvider(credentials.StaticCredentialsProvider{
+				Value: aws.Credentials{
+					AccessKeyID:     "test-access-key",
+					SecretAccessKey: "test-secret-key",
+				},
+			}),
+		)
+	} else {
+		// For real AWS S3, load default config with credential chain
+		cfg, err = config.LoadDefaultConfig(ctx,
+			config.WithRegion(s3c.region),
+		)
 	}
 
-	// Setup the S3 Upload Manager. Also see the SDK doc for the Upload Manager
-	// for more information on configuring part size, and concurrency.
-	// http://docs.aws.amazon.com/sdk-for-go/api/service/s3/s3manager/#NewUploader
-	uploader := s3manager.NewUploader(sess)
-
-	_, err = uploader.Upload(&s3manager.UploadInput{
-		Bucket: aws.String(s3.bucket),
-		Key:    aws.String(s3.fileName),
-		Body:   bytes.NewReader(content),
-	})
-
 	if err != nil {
-		log.Error().Msg(fmt.Sprintf("Failed to upload to S3 bucket %s, err: %v", s3.bucket, err))
+		log.Error().Msg(fmt.Sprintf("Failed to load AWS config: %v", err))
 		return 0, err
 	}
 
-	log.Info().Str("fileName", s3.fileName).Msg("Created new file in s3")
-
-	return len(content), nil
-}
-
-func getAwsLoglevel() *aws.LogLevelType {
-	logLevel := aws.LogLevel(aws.LogOff)
+	// Enable debug logging if zerolog is set to DebugLevel
 	if zerolog.GlobalLevel() == zerolog.DebugLevel {
-		logLevel = aws.LogLevel(aws.LogDebug | aws.LogDebugWithHTTPBody | aws.LogDebugWithRequestRetries | aws.LogDebugWithRequestErrors | aws.LogDebugWithSigning)
+		cfg.Logger = zerologLogger{}
+		cfg.ClientLogMode = aws.LogRequest | aws.LogResponseWithBody | aws.LogRetries
 	}
-	return logLevel
+
+	// Build service client with service-specific endpoint override
+	client := s3.NewFromConfig(cfg, func(o *s3.Options) {
+		o.UsePathStyle = s3c.forcePathStyle
+		if s3c.endpoint != "" {
+			o.BaseEndpoint = aws.String(s3c.endpoint) // <- replaces deprecated EndpointResolver
+		}
+	})
+
+	uploader := manager.NewUploader(client)
+
+	_, err = uploader.Upload(ctx, &s3.PutObjectInput{
+		Bucket: &s3c.bucket,
+		Key:    &s3c.fileName,
+		Body:   bytes.NewReader(content),
+	})
+	if err != nil {
+		log.Error().Msg(fmt.Sprintf("Failed to upload to S3 bucket %s, err: %v", s3c.bucket, err))
+		return 0, err
+	}
+
+	log.Info().Str("fileName", s3c.fileName).Msg("Created new file in s3")
+	return len(content), nil
 }

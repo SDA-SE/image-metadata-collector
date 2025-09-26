@@ -4,4 +4,3 @@ plugins:
   - "@semantic-release/git"
   - "@semantic-release/github"
 tagFormat: '${version}'
-
