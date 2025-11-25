@@ -109,6 +109,8 @@ func (c *Client) GetImages(namespaces *[]Namespace) (*[]Image, error) {
 	var images []Image
 
 	for _, namespace := range *namespaces {
+
+		// 1. Get Pods
 		pods, err := c.Clientset.CoreV1().Pods(namespace.Name).List(context.Background(), metav1.ListOptions{})
 		if err != nil {
 			return nil, err
@@ -129,7 +131,6 @@ func (c *Client) GetImages(namespaces *[]Namespace) (*[]Image, error) {
 			} else {
 				maps.Copy(annotations, namespace.Annotations)
 			}
-
 			// Get all container images
 			containerImageMap := map[string]string{}
 			for _, container := range pod.Spec.Containers {
@@ -156,6 +157,103 @@ func (c *Client) GetImages(namespaces *[]Namespace) (*[]Image, error) {
 				if (&Image{} != &image) {
 					images = append(images, image)
 				}
+			}
+
+			// Add all remaining container images for which no status exists
+			for _, imageName := range containerImageMap {
+
+				image := Image{
+					Image:         imageName,
+					NamespaceName: namespace.Name,
+					Labels:        labels,
+					Annotations:   annotations,
+				}
+				images = append(images, image)
+			}
+		}
+
+		// 2. Get Jobs
+		jobs, err := c.Clientset.BatchV1().Jobs(namespace.Name).List(context.Background(), metav1.ListOptions{})
+
+		if err != nil {
+			return nil, err
+		}
+
+		for _, job := range jobs.Items {
+
+			// Merge Pod and Namespace Labels & Annotations
+			labels := job.GetLabels()
+			if labels == nil {
+				labels = namespace.Labels
+			} else {
+				maps.Copy(labels, namespace.Labels)
+			}
+
+			annotations := job.GetAnnotations()
+			if annotations == nil {
+				annotations = namespace.Annotations
+			} else {
+				maps.Copy(annotations, namespace.Annotations)
+			}
+
+			// Get all container images
+			containerImageMap := map[string]string{}
+
+			// Reference: https://kubernetes.io/docs/concepts/workloads/controllers/job/
+			for _, container := range job.Spec.Template.Spec.Containers {
+				containerImageMap[container.Name] = container.Image
+			}
+
+			// Get all init container images
+			for _, initContainer := range job.Spec.Template.Spec.InitContainers {
+				containerImageMap[initContainer.Name] = initContainer.Image
+			}
+			// More references: https://sleeplessbeastie.eu/2024/01/31/how-to-create-job-and-cron-job/
+			// Add all remaining container images for which no status exists
+			for _, imageName := range containerImageMap {
+
+				image := Image{
+					Image:         imageName,
+					NamespaceName: namespace.Name,
+					Labels:        labels,
+					Annotations:   annotations,
+				}
+				images = append(images, image)
+			}
+		}
+
+		// 3. Get CronJobs
+		cronJobs, err := c.Clientset.BatchV1().CronJobs(namespace.Name).List(context.Background(), metav1.ListOptions{})
+		if err != nil {
+			return nil, err
+		}
+
+		for _, cronJob := range cronJobs.Items {
+			// Merge Pod and Namespace Labels & Annotations
+			labels := cronJob.GetLabels()
+			if labels == nil {
+				labels = namespace.Labels
+			} else {
+				maps.Copy(labels, namespace.Labels)
+			}
+			annotations := cronJob.GetAnnotations()
+			if annotations == nil {
+				annotations = namespace.Annotations
+			} else {
+				maps.Copy(annotations, namespace.Annotations)
+			}
+
+			// Get all container images
+			containerImageMap := map[string]string{}
+
+			// Reference: https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/
+			for _, container := range cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers {
+				containerImageMap[container.Name] = container.Image
+			}
+
+			// Get all init container images
+			for _, initContainer := range cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers {
+				containerImageMap[initContainer.Name] = initContainer.Image
 			}
 
 			// Add all remaining container images for which no status exists
