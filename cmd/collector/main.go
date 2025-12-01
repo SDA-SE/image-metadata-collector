@@ -114,6 +114,7 @@ func newCommand() *cobra.Command {
 	c.PersistentFlags().StringSliceVar(&cfg.EngagementTags, "engagement-tags", []string{}, "Default engagement tags to use")
 	c.PersistentFlags().StringVar(&cfg.ContainerType, "container-type", "application", "Default container-type to use")
 	c.PersistentFlags().StringVar(&cfg.Team, "team", "", "Default team to use")
+	c.PersistentFlags().StringVar(&cfg.TeamUuid, "team-uuid", "", "Default team uuid to use")
 	c.PersistentFlags().StringVar(&cfg.Product, "product", "", "Default product to use")
 	c.PersistentFlags().StringVar(&cfg.Slack, "slack", "", "Default slack channel to use")
 	c.PersistentFlags().StringVar(&cfg.Email, "email", "", "Default email to use")
