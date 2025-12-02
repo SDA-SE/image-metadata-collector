@@ -37,7 +37,7 @@ type CollectorImage struct {
 	EngagementTags         []string `json:"engagement_tags"`
 
 	Team     string `json:"team"`
-	TeamUuid string `json:"team-uuid"`
+	TeamUuid string `json:"team_uuid"`
 	Slack    string `json:"slack"`
 	Email    string `json:"email"`
 
@@ -86,7 +86,7 @@ func convertK8ImageToCollectorImage(k8Image kubeclient.Image, defaults *Collecto
 		EngagementTags:         GetOrDefaultStringSlice(tags, annotationNames.DefectDojo+"engagement-tags", defaults.EngagementTags),
 
 		Team:     GetOrDefaultString(tags, annotationNames.Contact+"team", defaults.Team),
-		TeamUuid: GetOrDefaultString(tags, annotationNames.Contact+"team-uuid", defaults.TeamUuid),
+		TeamUuid: GetOrDefaultString(tags, annotationNames.Contact+"team_uuid", defaults.TeamUuid),
 		Slack:    GetOrDefaultString(tags, annotationNames.Contact+"slack", defaults.Slack),
 		Email:    GetOrDefaultString(tags, annotationNames.Contact+"email", defaults.Email),
 
