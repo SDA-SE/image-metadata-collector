@@ -443,6 +443,7 @@ func TestConvert(t *testing.T) {
 		// Destination: "Lorem Ipsum Dolor Sit Amet",
 		ContainerType:  "myContainerType",
 		Team:           "myTeam",
+		TeamUuid:       "myTeamUuid",
 		EngagementTags: []string{"defaultTag"},
 
 		IsScanBaseimageLifetime: true,
@@ -511,6 +512,7 @@ func TestConvert(t *testing.T) {
 				Environment:    defaults.Environment,
 				ContainerType:  defaults.ContainerType,
 				Team:           defaults.Team,
+				TeamUuid:       defaults.TeamUuid,
 				EngagementTags: defaults.EngagementTags,
 
 				IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -540,6 +542,7 @@ func TestConvert(t *testing.T) {
 				Environment:    defaults.Environment,
 				ContainerType:  defaults.ContainerType,
 				Team:           defaults.Team,
+				TeamUuid:       defaults.TeamUuid,
 				EngagementTags: defaults.EngagementTags,
 
 				IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -556,6 +559,7 @@ func TestConvert(t *testing.T) {
 				Environment:    defaults.Environment,
 				ContainerType:  defaults.ContainerType,
 				Team:           defaults.Team,
+				TeamUuid:       defaults.TeamUuid,
 				EngagementTags: defaults.EngagementTags,
 
 				IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -573,7 +577,8 @@ func TestConvert(t *testing.T) {
 			targetK8Image: &[]kubeclient.Image{{
 				Image:         "quay.io/name:tag",
 				NamespaceName: "myNamespace",
-				Labels:        map[string]string{"contact.sda.se/team": "some-none-default-team"},
+				Labels: map[string]string{"contact.sda.se/team": "some-none-default-team",
+					"contact.sda.se/team_uuid": "some-none-default-team-uuid"},
 			}},
 			expectedCollectorImage: &[]CollectorImage{{
 				Namespace: "myNamespace",
@@ -583,6 +588,7 @@ func TestConvert(t *testing.T) {
 				Environment:    defaults.Environment,
 				ContainerType:  defaults.ContainerType,
 				Team:           "some-none-default-team",
+				TeamUuid:       "some-none-default-team-uuid",
 				EngagementTags: defaults.EngagementTags,
 
 				IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -600,7 +606,8 @@ func TestConvert(t *testing.T) {
 			targetK8Image: &[]kubeclient.Image{{
 				Image:         "quay.io/name:tag",
 				NamespaceName: "myNamespace",
-				Annotations:   map[string]string{"contact.sda.se/team": "some-none-default-team"},
+				Annotations: map[string]string{"contact.sda.se/team": "some-none-default-team",
+					"contact.sda.se/team_uuid": "some-none-default-team-uuid"},
 			}},
 			expectedCollectorImage: &[]CollectorImage{{
 				Namespace: "myNamespace",
@@ -610,6 +617,7 @@ func TestConvert(t *testing.T) {
 				Environment:    defaults.Environment,
 				ContainerType:  defaults.ContainerType,
 				Team:           "some-none-default-team",
+				TeamUuid:       "some-none-default-team-uuid",
 				EngagementTags: defaults.EngagementTags,
 
 				IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -627,8 +635,9 @@ func TestConvert(t *testing.T) {
 			targetK8Image: &[]kubeclient.Image{{
 				Image:         "quay.io/name:tag",
 				NamespaceName: "myNamespace",
-				Labels:        map[string]string{"contact.sda.se/team": "team-from-label"},
-				Annotations:   map[string]string{"contact.sda.se/team": "team-from-annotations"},
+
+				Labels:      map[string]string{"contact.sda.se/team": "team-from-label", "contact.sda.se/team_uuid": "team-uuid-from-label"},
+				Annotations: map[string]string{"contact.sda.se/team": "team-from-annotations", "contact.sda.se/team_uuid": "team-uuid-from-annotations"},
 			}},
 			expectedCollectorImage: &[]CollectorImage{{
 				Namespace: "myNamespace",
@@ -638,6 +647,7 @@ func TestConvert(t *testing.T) {
 				Environment:    defaults.Environment,
 				ContainerType:  defaults.ContainerType,
 				Team:           "team-from-annotations",
+				TeamUuid:       "team-uuid-from-annotations",
 				EngagementTags: defaults.EngagementTags,
 
 				IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -657,7 +667,7 @@ func TestConvert(t *testing.T) {
 				ImageId:       "quay.io/name@sha256:1234",
 				NamespaceName: "myNamespace",
 				Annotations:   map[string]string{"scans.sda.se/is-scan-malware": "false", "scans.sda.se/is-scan-distroless": "false"},
-				Labels:        map[string]string{"contact.sda.se/team": "some-none-default-team"},
+				Labels:        map[string]string{"contact.sda.se/team": "some-none-default-team", "contact.sda.se/team_uuid": "some-none-default-team-uuid"},
 			}},
 			expectedCollectorImage: &[]CollectorImage{{
 				Namespace: "myNamespace",
@@ -667,6 +677,7 @@ func TestConvert(t *testing.T) {
 				Environment:    defaults.Environment,
 				ContainerType:  defaults.ContainerType,
 				Team:           "some-none-default-team",
+				TeamUuid:       "some-none-default-team-uuid",
 				EngagementTags: defaults.EngagementTags,
 
 				IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -695,6 +706,7 @@ func TestConvert(t *testing.T) {
 				Environment:    defaults.Environment,
 				ContainerType:  defaults.ContainerType,
 				Team:           defaults.Team,
+				TeamUuid:       defaults.TeamUuid,
 				EngagementTags: []string{"first", "second", "third"},
 
 				IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -722,6 +734,7 @@ func TestConvert(t *testing.T) {
 				Environment:    defaults.Environment,
 				ContainerType:  defaults.ContainerType,
 				Team:           defaults.Team,
+				TeamUuid:       defaults.TeamUuid,
 				EngagementTags: defaults.EngagementTags,
 
 				IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -751,6 +764,7 @@ func TestConvert(t *testing.T) {
 				Description:    "Lorem Ipsum Dolor Sit Amet",
 				ContainerType:  defaults.ContainerType,
 				Team:           defaults.Team,
+				TeamUuid:       defaults.TeamUuid,
 				EngagementTags: defaults.EngagementTags,
 
 				IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -770,19 +784,19 @@ func TestConvert(t *testing.T) {
 				ImageId:       "quay.io/name@sha256:1234",
 				NamespaceName: "myNamespace-1",
 				Annotations:   map[string]string{"scans.sda.se/is-scan-malware": "false", "scans.sda.se/is-scan-distroless": "false"},
-				Labels:        map[string]string{"contact.sda.se/team": "team-1"},
+				Labels:        map[string]string{"contact.sda.se/team": "team-1", "contact.sda.se/team_uuid": "team_uuid1"},
 			}, {
 				Image:         "quay.io/name:tag-2",
 				ImageId:       "quay.io/name@sha256:2222",
 				NamespaceName: "myNamespace-1",
 				Annotations:   map[string]string{"scans.sda.se/is-scan-malware": "true", "scans.sda.se/is-scan-distroless": "false"},
-				Labels:        map[string]string{"contact.sda.se/team": "team-2"},
+				Labels:        map[string]string{"contact.sda.se/team": "team-2", "contact.sda.se/team_uuid": "team_uuid2"},
 			}, {
 				Image:         "quay.io/name:tag-3",
 				ImageId:       "quay.io/name@sha256:3333",
 				NamespaceName: "myNamespace-2",
 				Annotations:   map[string]string{"scans.sda.se/is-scan-malware": "false", "scans.sda.se/is-scan-distroless": "true"},
-				Labels:        map[string]string{"contact.sda.se/team": "team-3"},
+				Labels:        map[string]string{"contact.sda.se/team": "team-3", "contact.sda.se/team_uuid": "team_uuid3"},
 			}},
 			expectedCollectorImage: &[]CollectorImage{{
 				Namespace: "myNamespace-1",
@@ -792,6 +806,7 @@ func TestConvert(t *testing.T) {
 				Environment:    defaults.Environment,
 				ContainerType:  defaults.ContainerType,
 				Team:           "team-1",
+				TeamUuid:       "team_uuid1",
 				EngagementTags: defaults.EngagementTags,
 
 				IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -808,6 +823,7 @@ func TestConvert(t *testing.T) {
 				Environment:    defaults.Environment,
 				ContainerType:  defaults.ContainerType,
 				Team:           "team-2",
+				TeamUuid:       "team_uuid2",
 				EngagementTags: defaults.EngagementTags,
 
 				IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -824,6 +840,7 @@ func TestConvert(t *testing.T) {
 				Environment:    defaults.Environment,
 				ContainerType:  defaults.ContainerType,
 				Team:           "team-3",
+				TeamUuid:       "team_uuid3",
 				EngagementTags: defaults.EngagementTags,
 
 				IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -855,6 +872,7 @@ func TestStore(t *testing.T) {
 		// Destination: "Lorem Ipsum Dolor Sit Amet",
 		ContainerType:  "myContainerType",
 		Team:           "myTeam",
+		TeamUuid:       "myTeam_Uuid",
 		EngagementTags: []string{"defaultTag"},
 
 		IsScanBaseimageLifetime: true,
@@ -873,6 +891,7 @@ func TestStore(t *testing.T) {
 			Environment:    defaults.Environment,
 			ContainerType:  defaults.ContainerType,
 			Team:           defaults.Team,
+			TeamUuid:       defaults.TeamUuid,
 			EngagementTags: defaults.EngagementTags,
 
 			IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -889,6 +908,7 @@ func TestStore(t *testing.T) {
 			Environment:    defaults.Environment,
 			ContainerType:  defaults.ContainerType,
 			Team:           defaults.Team,
+			TeamUuid:       defaults.TeamUuid,
 			EngagementTags: defaults.EngagementTags,
 
 			IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -906,6 +926,7 @@ func TestStore(t *testing.T) {
 			Environment:    defaults.Environment,
 			ContainerType:  defaults.ContainerType,
 			Team:           "team-2",
+			TeamUuid:       "team-uuid2",
 			EngagementTags: defaults.EngagementTags,
 
 			IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
