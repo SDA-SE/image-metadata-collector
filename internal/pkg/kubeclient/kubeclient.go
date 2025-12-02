@@ -6,6 +6,7 @@ import (
 	"os"
 
 	"github.com/rs/zerolog/log"
+	v1 "k8s.io/api/core/v1"
 
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/client-go/kubernetes"
@@ -135,29 +136,26 @@ func (c *Client) GetImages(namespaces *[]Namespace) (*[]Image, error) {
 				containerImageMap[container.Name] = container.Image
 			}
 
+			// Get all init container images
+			for _, initContainer := range pod.Spec.InitContainers {
+				containerImageMap[initContainer.Name] = initContainer.Image
+			}
+			//	pod.Status.ContainerStatuses[0].Image=="minio/console:v0.19.4"
+
+			// Create images for all init containers with status
+			for _, status := range pod.Status.InitContainerStatuses {
+				var image = CreateImageAndAppend(containerImageMap, status, namespace, labels, annotations)
+				if (&Image{} != &image) {
+					images = append(images, image)
+				}
+			}
+
 			// Create images for all containers with status
 			for _, status := range pod.Status.ContainerStatuses {
-				var imageName string
-				containerImage := containerImageMap[status.Name]
-				delete(containerImageMap, status.Name)
-
-				// Don't create an image if no image name exists
-				if containerImage == "" && status.Image == "" {
-					continue
-				} else if status.Image != "" {
-					imageName = status.Image
-				} else {
-					imageName = containerImage
+				var image = CreateImageAndAppend(containerImageMap, status, namespace, labels, annotations)
+				if (&Image{} != &image) {
+					images = append(images, image)
 				}
-
-				image := Image{
-					Image:         imageName,
-					ImageId:       status.ImageID,
-					NamespaceName: namespace.Name,
-					Labels:        labels,
-					Annotations:   annotations,
-				}
-				images = append(images, image)
 			}
 
 			// Add all remaining container images for which no status exists
@@ -175,6 +173,31 @@ func (c *Client) GetImages(namespaces *[]Namespace) (*[]Image, error) {
 	}
 
 	return &images, nil
+}
+
+func CreateImageAndAppend(containerImageMap map[string]string, status v1.ContainerStatus, namespace Namespace, labels map[string]string, annotations map[string]string) Image {
+
+	var imageName string
+	containerImage := containerImageMap[status.Name]
+	delete(containerImageMap, status.Name)
+
+	// Don't create an image if no image name exists
+	if containerImage == "" && status.Image == "" {
+		return Image{}
+	} else if status.Image != "" {
+		imageName = status.Image
+	} else {
+		imageName = containerImage
+	}
+
+	image := Image{
+		Image:         imageName,
+		ImageId:       status.ImageID,
+		NamespaceName: namespace.Name,
+		Labels:        labels,
+		Annotations:   annotations,
+	}
+	return image
 }
 
 func (c *Client) GetAllImagesForAllNamespaces() (*[]Image, error) {
