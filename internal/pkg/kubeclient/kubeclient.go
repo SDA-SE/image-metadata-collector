@@ -314,6 +314,6 @@ func (c *Client) GetAllImagesForAllNamespaces() (*[]Image, error) {
 		log.Fatal().Stack().Err(err).Msg("failed to get images")
 		return nil, err
 	}
-
+	log.Info().Msgf("All Images for namespace %s have been parsed. ", *namespaces)
 	return k8Images, nil
 }
