@@ -147,6 +147,7 @@ func (c *Client) GetImages(namespaces *[]Namespace) (*[]Image, error) {
 			for _, status := range pod.Status.InitContainerStatuses {
 				var image = CreateImageAndAppend(containerImageMap, status, namespace, labels, annotations)
 				if (&Image{} != &image) {
+					log.Info().Msgf("Adding image from init containers with Status: %s", image)
 					images = append(images, image)
 				}
 			}
@@ -155,6 +156,7 @@ func (c *Client) GetImages(namespaces *[]Namespace) (*[]Image, error) {
 			for _, status := range pod.Status.ContainerStatuses {
 				var image = CreateImageAndAppend(containerImageMap, status, namespace, labels, annotations)
 				if (&Image{} != &image) {
+					log.Info().Msgf("Adding image from containers with Status: %s", image)
 					images = append(images, image)
 				}
 			}
@@ -168,6 +170,7 @@ func (c *Client) GetImages(namespaces *[]Namespace) (*[]Image, error) {
 					Labels:        labels,
 					Annotations:   annotations,
 				}
+				log.Info().Msgf("Adding image from containers without Status: %s", image)
 				images = append(images, image)
 			}
 		}
@@ -218,6 +221,7 @@ func (c *Client) GetImages(namespaces *[]Namespace) (*[]Image, error) {
 					Labels:        labels,
 					Annotations:   annotations,
 				}
+				log.Info().Msgf("Adding image from Jobs (without Status): %s", image)
 				images = append(images, image)
 			}
 		}
@@ -265,6 +269,7 @@ func (c *Client) GetImages(namespaces *[]Namespace) (*[]Image, error) {
 					Labels:        labels,
 					Annotations:   annotations,
 				}
+				log.Info().Msgf("Adding image from Cron Jobs (without Status): %s", image)
 				images = append(images, image)
 			}
 		}
