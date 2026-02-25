@@ -1,7 +1,9 @@
 package collector
 
 import (
+	"encoding/json"
 	"errors"
+	"fmt"
 	"io"
 	"maps"
 	"regexp"
@@ -10,6 +12,8 @@ import (
 	"github.com/SDA-SE/image-metadata-collector/internal/pkg/kubeclient"
 
 	"github.com/rs/zerolog/log"
+
+	"github.com/CycloneDX/cyclonedx-go"
 )
 
 type AnnotationNames struct {
@@ -200,4 +204,53 @@ func Store(images *[]CollectorImage, storage io.Writer, jsonMarshal JsonMarshal)
 	}
 
 	return nil
+}
+
+func CycloneDXMarshal(v interface{}) ([]byte, error) {
+	images, ok := v.(*[]CollectorImage)
+	if !ok {
+		return nil, fmt.Errorf("invalid type, expected *[]CollectorImage")
+	}
+
+	bom := cyclonedx.BOM{
+		BOMFormat:   "CycloneDX",
+		SpecVersion: cyclonedx.SpecVersion1_5,
+		Version:     1,
+		Components:  &[]cyclonedx.Component{},
+	}
+
+	for _, img := range *images {
+		component := cyclonedx.Component{
+			Type:       cyclonedx.ComponentTypeContainer,
+			Name:       img.Image,
+			Version:    img.AppKubernetesIoVersion,
+			PackageURL: img.ImageId,
+			Properties: &[]cyclonedx.Property{
+				{Name: "namespace", Value: img.Namespace},
+				{Name: "environment", Value: img.Environment},
+				{Name: "product", Value: img.Product},
+				{Name: "description", Value: img.Description},
+				{Name: "app_kubernetes_io_name", Value: img.AppKubernetesIoName},
+				{Name: "container_type", Value: img.ContainerType},
+				{Name: "team", Value: img.Team},
+				{Name: "slack", Value: img.Slack},
+				{Name: "email", Value: img.Email},
+				{Name: "is_scan_baseimage_lifetime", Value: fmt.Sprintf("%v", img.IsScanBaseimageLifetime)},
+				{Name: "is_scan_dependency_check", Value: fmt.Sprintf("%v", img.IsScanDependencyCheck)},
+				{Name: "is_scan_dependency_track", Value: fmt.Sprintf("%v", img.IsScanDependencyTrack)},
+				{Name: "is_scan_distroless", Value: fmt.Sprintf("%v", img.IsScanDistroless)},
+				{Name: "is_scan_lifetime", Value: fmt.Sprintf("%v", img.IsScanLifetime)},
+				{Name: "is_scan_malware", Value: fmt.Sprintf("%v", img.IsScanMalware)},
+				{Name: "is_scan_new_version", Value: fmt.Sprintf("%v", img.IsScanNewVersion)},
+				{Name: "is_scan_runasroot", Value: fmt.Sprintf("%v", img.IsScanRunAsRoot)},
+				{Name: "is_scan_potentially_running_as_root", Value: fmt.Sprintf("%v", img.IsPotentiallyRunningAsRoot)},
+				{Name: "is_scan_run_as_privileged", Value: fmt.Sprintf("%v", img.IsScanRunAsPrivileged)},
+				{Name: "is_scan_potentially_running_as_privileged", Value: fmt.Sprintf("%v", img.IsPotentiallyRunningAsPrivileged)},
+				{Name: "scan_lifetime_max_days", Value: fmt.Sprintf("%d", img.ScanLifetimeMaxDays)},
+			},
+		}
+		*bom.Components = append(*bom.Components, component)
+	}
+
+	return json.MarshalIndent(bom, "", "  ")
 }

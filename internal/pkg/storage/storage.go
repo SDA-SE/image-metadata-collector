@@ -15,8 +15,9 @@ type StorageConfig struct {
 	git.GitConfig
 	api.ApiConfig
 
-	StorageFlag string
-	FileName    string
+	StorageFlag  string
+	FileName     string
+	OutputFormat string
 }
 
 func NewStorage(cfg *StorageConfig, environment string) (io.Writer, error) {

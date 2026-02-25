@@ -68,6 +68,9 @@ func newCommand() *cobra.Command {
 		},
 	}
 
+	// Add the new CLI parameter for output format
+	c.PersistentFlags().StringVar(&cfg.StorageConfig.OutputFormat, "output-format", "json", "Output format for the collected images [json, cyclonedx]")
+
 	// Run Configuration
 	c.PersistentFlags().BoolVar(&cfg.Debug, "debug", false, "Set logging level to debug, default logging level is info")
 	c.Flags().StringSliceVarP(&cfg.ImageFilter, "image-filter", "s", []string{}, "Images to set the skip flag to true. Images as regex comma seperated without spaces. e.g. 'mock-service,mongo,openpolicyagent/opa,/istio/")
@@ -194,8 +197,19 @@ func run(cfg *config.Config) {
 	log.Debug().Interface("images", images).Msg("")
 	log.Info().Msg("Images collected & converted")
 
+	// Determine the marshalling function based on the output format
+	var marshalFunc func(interface{}) ([]byte, error)
+	switch cfg.StorageConfig.OutputFormat {
+	case "json":
+		marshalFunc = collector.JsonIndentMarshal
+	case "cyclonedx":
+		marshalFunc = collector.CycloneDXMarshal
+	default:
+		log.Fatal().Msg("Unsupported output format: " + cfg.StorageConfig.OutputFormat)
+	}
+
 	// Store images
-	err = collector.Store(images, storage, collector.JsonIndentMarshal)
+	err = collector.Store(images, storage, marshalFunc)
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("Could not store collected images")
 	}
