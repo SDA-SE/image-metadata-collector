@@ -1,3 +1,6 @@
 * @SDA-SE/clusterscanner
 * @SDA-SE/sda-workforce
 * @SDA-SE/sda-devops
+
+# Protect CI/CD pipeline configuration
+.github/ @SDA-SE/sda-devops
