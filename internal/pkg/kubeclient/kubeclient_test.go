@@ -124,7 +124,7 @@ func TestGetNamespaces(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			client.Clientset = testclient.NewSimpleClientset(tc.namespaces...)
+			client.Clientset = testclient.NewClientset(tc.namespaces...)
 			namespaces, err := client.GetNamespaces()
 
 			if tc.expectSuccess && err != nil {
@@ -477,7 +477,7 @@ func TestGetImages(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			client.Clientset = testclient.NewSimpleClientset(tc.pods...)
+			client.Clientset = testclient.NewClientset(tc.pods...)
 			images, err := client.GetImages(&tc.targetNamespaces)
 
 			sort.Slice(*images, func(i, j int) bool {
@@ -826,7 +826,7 @@ func TestGetAllImages(t *testing.T) {
 
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			client.Clientset = testclient.NewSimpleClientset(tc.pods...)
+			client.Clientset = testclient.NewClientset(tc.pods...)
 			images, err := client.GetAllImagesForAllNamespaces()
 
 			sort.Slice(*images, func(i, j int) bool {
