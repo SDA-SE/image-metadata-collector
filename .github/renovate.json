@@ -1,0 +1,7 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+  "extends": [
+    "github>SDA-SE/renovate-config:credentials#0.21.0",
+    "github>SDA-SE/renovate-config:sda-default#0.21.0"
+  ]
+}
