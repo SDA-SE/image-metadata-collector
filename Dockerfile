@@ -1,8 +1,10 @@
-FROM golang:1.24 as build-env
+FROM golang:1.24 AS build-env
 WORKDIR /go/src/app
-ADD . /go/src/app
 
-RUN go get -d -v ./...
+COPY go.mod go.sum ./
+RUN go mod download
+
+COPY . .
 
 RUN CGO_ENABLED=0 go build -o /go/bin/app cmd/collector/main.go && \
   go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.4.1 && \
