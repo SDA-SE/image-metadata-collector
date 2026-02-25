@@ -60,7 +60,7 @@ func newCommand() *cobra.Command {
 			// Set the logging level based on the debug flag
 			if cfg.Debug {
 				zerolog.SetGlobalLevel(zerolog.DebugLevel)
-			} 
+			}
 
 			return nil
 		},
