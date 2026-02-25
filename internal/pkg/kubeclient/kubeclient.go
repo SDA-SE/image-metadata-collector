@@ -4,6 +4,7 @@ import (
 	"context"
 	"maps"
 	"os"
+	"strings"
 
 	"github.com/rs/zerolog/log"
 	v1 "k8s.io/api/core/v1"
@@ -314,6 +315,10 @@ func (c *Client) GetAllImagesForAllNamespaces() (*[]Image, error) {
 		log.Fatal().Stack().Err(err).Msg("failed to get images")
 		return nil, err
 	}
-	log.Info().Msgf("All Images for namespace %s have been parsed.", *namespaces)
+	namespaceNames := make([]string, len(*namespaces))
+	for i, ns := range *namespaces {
+		namespaceNames[i] = ns.Name
+	}
+	log.Info().Msgf("All Images for namespaces %s have been parsed.", strings.Join(namespaceNames, ", "))
 	return k8Images, nil
 }

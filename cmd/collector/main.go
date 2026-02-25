@@ -29,6 +29,7 @@ const LongDescription = `Image Metadata Collector is a tool that will scan
 
 func main() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
+	zerolog.SetGlobalLevel(zerolog.InfoLevel)
 	log.Logger = log.With().Caller().Logger()
 
 	err := newCommand().Execute()
