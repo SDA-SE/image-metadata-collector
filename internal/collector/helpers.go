@@ -4,6 +4,8 @@ import (
 	"encoding/json"
 	"strconv"
 	"strings"
+
+	"github.com/rs/zerolog/log"
 )
 
 // GetOrDefaultBool returns the value of the given name from the map m or the default value if it doesn't exist.
@@ -63,6 +65,21 @@ func GetOrDefaultStringSlice(m map[string]string, name string, default_ []string
 		value = default_
 	}
 	return value
+}
+
+func GetOrDefaultOwners(tags map[string]string, key string, defaultValue []Owner) []Owner {
+	value, ok := tags[key]
+	if !ok || value == "" {
+		return defaultValue
+	}
+
+	var owners []Owner
+	if err := json.Unmarshal([]byte(value), &owners); err != nil {
+		log.Warn().Err(err).Msgf("Could not parse owners from tag %s", key)
+		return defaultValue
+	}
+
+	return owners
 }
 
 type JsonMarshal func(any) ([]byte, error)
