@@ -1,0 +1,82 @@
+version: 2
+updates:
+  - package-ecosystem: "gomod"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "03:00"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 10
+    rebase-strategy: "auto"
+    labels:
+      - "dependencies"
+      - "go"
+    commit-message:
+      prefix: "fix"
+      prefix-development: chore
+      include: "scope"
+    reviewers:
+      - "SDA-SE/clusterscanner"
+      - "SDA-SE/sda-devops"
+    groups:
+      go-dependencies-non-breaking:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "github-actions"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "03:30"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 5
+    rebase-strategy: "auto"
+    labels:
+      - "dependencies"
+      - "github-actions"
+    commit-message:
+      prefix: "chore"
+      include: "scope"
+      prefix-development: "chore"
+    reviewers:
+      - "SDA-SE/clusterscanner"
+      - "SDA-SE/sda-devops"
+    groups:
+      github-actions-non-breaking:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
+
+  - package-ecosystem: "docker"
+    directory: "/"
+    schedule:
+      interval: "weekly"
+      day: "monday"
+      time: "04:00"
+      timezone: "Etc/UTC"
+    open-pull-requests-limit: 2
+    rebase-strategy: "auto"
+    labels:
+      - "dependencies"
+      - "docker"
+    commit-message:
+      prefix: "fix"
+      prefix-development: "chore"
+      include: "scope"
+    reviewers:
+      - "SDA-SE/clusterscanner"
+      - "SDA-SE/sda-devops"
+    groups:
+      docker-base-images-non-breaking:
+        patterns:
+          - "*"
+        update-types:
+          - "minor"
+          - "patch"
