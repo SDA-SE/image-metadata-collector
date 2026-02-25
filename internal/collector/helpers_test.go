@@ -1,6 +1,7 @@
 package collector
 
 import (
+	"encoding/json"
 	"sort"
 	"testing"
 )
@@ -250,5 +251,93 @@ func TestGetOrDefaultStringSlice(t *testing.T) {
 			}
 
 		})
+	}
+}
+
+func TestGetOrDefaultOwners(t *testing.T) {
+	owners := []Owner{
+		{Role: "admin", Uuid: "1234", Name: "Alice"},
+		{Role: "viewer", Uuid: "5678", Name: "Bob"},
+	}
+	testMap := map[string]string{"owners": "[{\"role\":\"admin\",\"uuid\":\"1234\",\"name\":\"Alice\"},{\"role\":\"viewer\",\"uuid\":\"5678\",\"name\":\"Bob\"}]"}
+
+	testCases := []TestCaseHelper{
+		{
+			name:           "ValidJSON",
+			inputMap:       testMap,
+			targetKeyName:  "owners",
+			targetDefault:  []Owner{},
+			expectedResult: owners,
+		},
+		{
+			name:           "KeyMissing_ReturnsDefault",
+			inputMap:       testMap,
+			targetKeyName:  "invalidkey",
+			targetDefault:  []Owner{},
+			expectedResult: []Owner{},
+		},
+		{
+			name:           "EmptyValue_ReturnsDefault",
+			inputMap:       map[string]string{"owners": ""},
+			targetKeyName:  "owners",
+			targetDefault:  []Owner{{Role: "default", Uuid: "0000", Name: "Default"}},
+			expectedResult: []Owner{{Role: "default", Uuid: "0000", Name: "Default"}},
+		},
+		{
+			name:           "InvalidJSON_ReturnsDefault",
+			inputMap:       map[string]string{"owners": "not-valid-json"},
+			targetKeyName:  "owners",
+			targetDefault:  []Owner{{Role: "fallback", Uuid: "9999", Name: "Fallback"}},
+			expectedResult: []Owner{{Role: "fallback", Uuid: "9999", Name: "Fallback"}},
+		},
+		{
+			name:           "EmptyArray",
+			inputMap:       map[string]string{"owners": "[]"},
+			targetKeyName:  "owners",
+			targetDefault:  []Owner{{Role: "fallback", Uuid: "9999", Name: "Fallback"}},
+			expectedResult: []Owner{},
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			result := GetOrDefaultOwners(tc.inputMap, tc.targetKeyName, tc.targetDefault.([]Owner))
+			expectedResult := tc.expectedResult.([]Owner)
+			if len(expectedResult) != len(result) {
+				t.Fatalf("Expected %v, got %v, length missmatching", tc.expectedResult, result)
+			}
+			for i, v := range result {
+				if expectedResult[i] != v {
+					t.Fatalf("Expected %v, got %v, value missmatching (%v != %v)", expectedResult, result, expectedResult[i], v)
+				}
+			}
+		})
+	}
+}
+
+// --- JsonIndentMarshal ---
+func TestJsonIndentMarshal_ValidInput(t *testing.T) {
+	input := []Owner{{Role: "admin", Uuid: "1234", Name: "Alice"}}
+	data, err := JsonIndentMarshal(input)
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if len(data) == 0 {
+		t.Error("expected non-empty output")
+	}
+	// Verify it's valid JSON by unmarshalling back
+	var result []Owner
+	if err := json.Unmarshal(data, &result); err != nil {
+		t.Errorf("output is not valid JSON: %v", err)
+	}
+}
+
+func TestJsonIndentMarshal_EmptySlice(t *testing.T) {
+	data, err := JsonIndentMarshal([]Owner{})
+	if err != nil {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if string(data) != "[]" {
+		t.Errorf("expected '[]', got %s", string(data))
 	}
 }

@@ -118,6 +118,7 @@ func newCommand() *cobra.Command {
 	c.PersistentFlags().StringVar(&cfg.Product, "product", "", "Default product to use")
 	c.PersistentFlags().StringVar(&cfg.Slack, "slack", "", "Default slack channel to use")
 	c.PersistentFlags().StringVar(&cfg.Email, "email", "", "Default email to use")
+	c.PersistentFlags().StringVar(&cfg.Owners, "owners", "[]", "Default owners to use")
 	c.PersistentFlags().StringVar(&cfg.NamespaceFilter, "namespace-filter", "", "Default namespace filter to use")
 	c.PersistentFlags().StringVar(&cfg.NamespaceFilterNegated, "negated_namespace_filter", "", "Default negated namespace filter to use")
 

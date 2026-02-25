@@ -19,6 +19,12 @@ type AnnotationNames struct {
 	DefectDojo string
 }
 
+type Owner struct {
+	Role string `json:"role"`
+	Uuid string `json:"uuid"`
+	Name string `json:"name"`
+}
+
 type CollectorImage struct {
 	Namespace string `json:"namespace"`
 	Image     string `json:"image"`
@@ -36,10 +42,11 @@ type CollectorImage struct {
 	NamespaceFilterNegated string   `json:"namespace_filter_negated"`
 	EngagementTags         []string `json:"engagement_tags"`
 
-	Team     string `json:"team"`
-	TeamUuid string `json:"team_uuid"`
-	Slack    string `json:"slack"`
-	Email    string `json:"email"`
+	Team     string  `json:"team"`
+	TeamUuid string  `json:"team_uuid"`
+	Slack    string  `json:"slack"`
+	Email    string  `json:"email"`
+	Owners   []Owner `json:"owners"`
 
 	IsScanBaseimageLifetime          bool  `json:"is_scan_baseimage_lifetime"`
 	IsScanDependencyCheck            bool  `json:"is_scan_dependency_check"`
@@ -89,6 +96,7 @@ func convertK8ImageToCollectorImage(k8Image kubeclient.Image, defaults *Collecto
 		TeamUuid: GetOrDefaultString(tags, annotationNames.Contact+"team_uuid", defaults.TeamUuid),
 		Slack:    GetOrDefaultString(tags, annotationNames.Contact+"slack", defaults.Slack),
 		Email:    GetOrDefaultString(tags, annotationNames.Contact+"email", defaults.Email),
+		Owners:   GetOrDefaultOwners(tags, annotationNames.Contact+"owners", defaults.Owners),
 
 		IsScanBaseimageLifetime:          GetOrDefaultBool(tags, annotationNames.Scans+"is-scan-baseimage-lifetime", defaults.IsScanBaseimageLifetime),
 		IsScanDependencyCheck:            GetOrDefaultBool(tags, annotationNames.Scans+"is-scan-dependency-check", defaults.IsScanDependencyCheck),

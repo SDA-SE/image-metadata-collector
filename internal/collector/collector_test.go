@@ -444,6 +444,7 @@ func TestConvert(t *testing.T) {
 		ContainerType:  "myContainerType",
 		Team:           "myTeam",
 		TeamUuid:       "myTeamUuid",
+		Owners:         []Owner{},
 		EngagementTags: []string{"defaultTag"},
 
 		IsScanBaseimageLifetime: true,
@@ -513,6 +514,7 @@ func TestConvert(t *testing.T) {
 				ContainerType:  defaults.ContainerType,
 				Team:           defaults.Team,
 				TeamUuid:       defaults.TeamUuid,
+				Owners:         defaults.Owners,
 				EngagementTags: defaults.EngagementTags,
 
 				IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -543,6 +545,7 @@ func TestConvert(t *testing.T) {
 				ContainerType:  defaults.ContainerType,
 				Team:           defaults.Team,
 				TeamUuid:       defaults.TeamUuid,
+				Owners:         defaults.Owners,
 				EngagementTags: defaults.EngagementTags,
 
 				IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -560,6 +563,7 @@ func TestConvert(t *testing.T) {
 				ContainerType:  defaults.ContainerType,
 				Team:           defaults.Team,
 				TeamUuid:       defaults.TeamUuid,
+				Owners:         defaults.Owners,
 				EngagementTags: defaults.EngagementTags,
 
 				IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -589,6 +593,7 @@ func TestConvert(t *testing.T) {
 				ContainerType:  defaults.ContainerType,
 				Team:           "some-none-default-team",
 				TeamUuid:       "some-none-default-team-uuid",
+				Owners:         defaults.Owners,
 				EngagementTags: defaults.EngagementTags,
 
 				IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -618,6 +623,7 @@ func TestConvert(t *testing.T) {
 				ContainerType:  defaults.ContainerType,
 				Team:           "some-none-default-team",
 				TeamUuid:       "some-none-default-team-uuid",
+				Owners:         defaults.Owners,
 				EngagementTags: defaults.EngagementTags,
 
 				IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -648,6 +654,7 @@ func TestConvert(t *testing.T) {
 				ContainerType:  defaults.ContainerType,
 				Team:           "team-from-annotations",
 				TeamUuid:       "team-uuid-from-annotations",
+				Owners:         defaults.Owners,
 				EngagementTags: defaults.EngagementTags,
 
 				IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -667,7 +674,9 @@ func TestConvert(t *testing.T) {
 				ImageId:       "quay.io/name@sha256:1234",
 				NamespaceName: "myNamespace",
 				Annotations:   map[string]string{"scans.sda.se/is-scan-malware": "false", "scans.sda.se/is-scan-distroless": "false"},
-				Labels:        map[string]string{"contact.sda.se/team": "some-none-default-team", "contact.sda.se/team_uuid": "some-none-default-team-uuid"},
+				Labels: map[string]string{"contact.sda.se/team": "some-none-default-team",
+					"contact.sda.se/team_uuid": "some-none-default-team-uuid",
+					"contact.sda.se/owners":    "[{\"role\":\"admin\",\"uuid\":\"550e8400-e29b-41d4-a716-446655440000\",\"name\":\"Alice\"}]"},
 			}},
 			expectedCollectorImage: &[]CollectorImage{{
 				Namespace: "myNamespace",
@@ -679,6 +688,10 @@ func TestConvert(t *testing.T) {
 				Team:           "some-none-default-team",
 				TeamUuid:       "some-none-default-team-uuid",
 				EngagementTags: defaults.EngagementTags,
+				Owners: []Owner{{
+					Role: "admin",
+					Uuid: "550e8400-e29b-41d4-a716-446655440000",
+					Name: "Alice"}},
 
 				IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
 				IsScanDependencyCheck:   defaults.IsScanDependencyCheck,
@@ -707,6 +720,7 @@ func TestConvert(t *testing.T) {
 				ContainerType:  defaults.ContainerType,
 				Team:           defaults.Team,
 				TeamUuid:       defaults.TeamUuid,
+				Owners:         defaults.Owners,
 				EngagementTags: []string{"first", "second", "third"},
 
 				IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -735,6 +749,7 @@ func TestConvert(t *testing.T) {
 				ContainerType:  defaults.ContainerType,
 				Team:           defaults.Team,
 				TeamUuid:       defaults.TeamUuid,
+				Owners:         defaults.Owners,
 				EngagementTags: defaults.EngagementTags,
 
 				IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -765,6 +780,7 @@ func TestConvert(t *testing.T) {
 				ContainerType:  defaults.ContainerType,
 				Team:           defaults.Team,
 				TeamUuid:       defaults.TeamUuid,
+				Owners:         []Owner{},
 				EngagementTags: defaults.EngagementTags,
 
 				IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -807,6 +823,7 @@ func TestConvert(t *testing.T) {
 				ContainerType:  defaults.ContainerType,
 				Team:           "team-1",
 				TeamUuid:       "team_uuid1",
+				Owners:         []Owner{},
 				EngagementTags: defaults.EngagementTags,
 
 				IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -824,6 +841,7 @@ func TestConvert(t *testing.T) {
 				ContainerType:  defaults.ContainerType,
 				Team:           "team-2",
 				TeamUuid:       "team_uuid2",
+				Owners:         []Owner{},
 				EngagementTags: defaults.EngagementTags,
 
 				IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -841,6 +859,7 @@ func TestConvert(t *testing.T) {
 				ContainerType:  defaults.ContainerType,
 				Team:           "team-3",
 				TeamUuid:       "team_uuid3",
+				Owners:         []Owner{},
 				EngagementTags: defaults.EngagementTags,
 
 				IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -874,6 +893,7 @@ func TestStore(t *testing.T) {
 		Team:           "myTeam",
 		TeamUuid:       "myTeam_Uuid",
 		EngagementTags: []string{"defaultTag"},
+		Owners:         []Owner{{}},
 
 		IsScanBaseimageLifetime: true,
 		IsScanDependencyCheck:   true,
@@ -892,6 +912,7 @@ func TestStore(t *testing.T) {
 			ContainerType:  defaults.ContainerType,
 			Team:           defaults.Team,
 			TeamUuid:       defaults.TeamUuid,
+			Owners:         defaults.Owners,
 			EngagementTags: defaults.EngagementTags,
 
 			IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -909,6 +930,7 @@ func TestStore(t *testing.T) {
 			ContainerType:  defaults.ContainerType,
 			Team:           defaults.Team,
 			TeamUuid:       defaults.TeamUuid,
+			Owners:         defaults.Owners,
 			EngagementTags: defaults.EngagementTags,
 
 			IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
@@ -927,6 +949,7 @@ func TestStore(t *testing.T) {
 			ContainerType:  defaults.ContainerType,
 			Team:           "team-2",
 			TeamUuid:       "team-uuid2",
+			Owners:         defaults.Owners,
 			EngagementTags: defaults.EngagementTags,
 
 			IsScanBaseimageLifetime: defaults.IsScanBaseimageLifetime,
