@@ -1,4 +1,4 @@
-FROM golang:1.24 AS build-env
+FROM golang:1.25.7 AS build-env
 WORKDIR /go/src/app
 
 COPY go.mod go.sum ./
@@ -7,7 +7,7 @@ RUN go mod download
 COPY . .
 
 RUN CGO_ENABLED=0 go build -o /go/bin/app cmd/collector/main.go && \
-  go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.4.1 && \
+  go install github.com/CycloneDX/cyclonedx-gomod/cmd/cyclonedx-gomod@v1.10.0 && \
   cyclonedx-gomod mod -json=true -output /bom.json
 
 FROM gcr.io/distroless/static-debian12
