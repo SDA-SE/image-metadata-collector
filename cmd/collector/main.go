@@ -52,11 +52,11 @@ func newCommand() *cobra.Command {
 				return err
 			}
 			// Parse owners JSON string into []Owner
-            if ownersFlag != "" {
-                if err := json.Unmarshal([]byte(ownersFlag), &cfg.Owners); err != nil {
-                    return fmt.Errorf("could not parse owners flag: %w", err)
-                }
-            }
+			if ownersFlag != "" {
+				if err := json.Unmarshal([]byte(ownersFlag), &cfg.Owners); err != nil {
+					return fmt.Errorf("could not parse owners flag: %w", err)
+				}
+			}
 			// Set the logging level based on the debug flag
 			if cfg.Debug {
 				zerolog.SetGlobalLevel(zerolog.DebugLevel)
@@ -126,7 +126,7 @@ func newCommand() *cobra.Command {
 	c.PersistentFlags().StringVar(&cfg.Product, "product", "", "Default product to use")
 	c.PersistentFlags().StringVar(&cfg.Slack, "slack", "", "Default slack channel to use")
 	c.PersistentFlags().StringVar(&cfg.Email, "email", "", "Default email to use")
-    c.PersistentFlags().StringVar(&ownersFlag, "owners", "", "List of owners as JSON array e.g. '[{\"role\":\"admin\",\"uuid\":\"1234\",\"name\":\"Alice\"}]'")
+	c.PersistentFlags().StringVar(&ownersFlag, "owners", "", "List of owners as JSON array e.g. '[{\"role\":\"admin\",\"uuid\":\"1234\",\"name\":\"Alice\"}]'")
 	c.PersistentFlags().StringVar(&cfg.NamespaceFilter, "namespace-filter", "", "Default namespace filter to use")
 	c.PersistentFlags().StringVar(&cfg.NamespaceFilterNegated, "negated_namespace_filter", "", "Default negated namespace filter to use")
 
