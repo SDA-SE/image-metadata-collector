@@ -30,7 +30,11 @@ jobs:
 
       - name: Release Dry
         id: semantic-release-dry
-        run: semantic-release --dry-run >> output.txt ; cat output.txt; echo "VERSION=$(cat output.txt | grep 'Release note for version' | grep -oP '\d+\.\d+\.\d+')" >> $GITHUB_ENV
+        run: |
+          semantic-release --dry-run | tee output.txt
+          VERSION=$(grep -oP 'Release note for version \K\d+\.\d+\.\d+' output.txt || echo "")
+          echo "VERSION=$VERSION" >> $GITHUB_ENV
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 
@@ -40,15 +44,15 @@ jobs:
           branch=${GITHUB_HEAD_REF:-${GITHUB_REF#refs/heads/}}
           sanitized_branch=$(echo "${branch}" | tr '/' '-')
           if [ "${branch}" == "main" ]; then
-            if [ -z "${{ steps.semantic-release-dry.outputs.VERSION }}" ]; then
+            if [ -z "${{ steps.semantic-release-dry.outputs.version }}" ]; then
               echo "semantic release not detecting a new version, using latest tag"
               VERSION=$(git describe --tags --abbrev=0)
             else
-              VERSION=${{ steps.semantic-release-dry.outputs.VERSION }}
+              VERSION=${{ steps.semantic-release-dry.outputs.version }}
             fi
-            echo "::set-output name=version::$VERSION"
+            echo "version=$VERSION" >> $GITHUB_OUTPUT
           else
-            echo "::set-output name=version::${sanitized_branch}"
+            echo "version=${sanitized_branch}" >> $GITHUB_OUTPUT
           fi
 
       # TODO: Discuss testing strategy and change this step accordingly
