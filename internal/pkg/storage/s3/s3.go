@@ -9,7 +9,7 @@ import (
 	"github.com/aws/aws-sdk-go-v2/aws"
 	"github.com/aws/aws-sdk-go-v2/config"
 	"github.com/aws/aws-sdk-go-v2/credentials"
-	"github.com/aws/aws-sdk-go-v2/feature/s3/manager"
+	"github.com/aws/aws-sdk-go-v2/feature/s3/transfermanager"
 	"github.com/aws/aws-sdk-go-v2/service/s3"
 	"github.com/aws/smithy-go/logging"
 	"github.com/rs/zerolog"
@@ -114,9 +114,9 @@ func (s3c *s3Client) Write(content []byte) (int, error) {
 		}
 	})
 
-	uploader := manager.NewUploader(client)
+	tm := transfermanager.New(client)
 
-	_, err = uploader.Upload(ctx, &s3.PutObjectInput{
+	_, err = tm.UploadObject(ctx, &transfermanager.UploadObjectInput{
 		Bucket: &s3c.bucket,
 		Key:    &s3c.fileName,
 		Body:   bytes.NewReader(content),
