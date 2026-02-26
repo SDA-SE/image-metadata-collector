@@ -29,6 +29,7 @@ type CollectorImage struct {
 	Namespace string `json:"namespace"`
 	Image     string `json:"image"`
 	ImageId   string `json:"image_id"`
+	ImageType string `json:"image_type"`
 
 	// Fields from annotations and labels
 	Environment            string   `json:"environment"`
@@ -80,6 +81,7 @@ func convertK8ImageToCollectorImage(k8Image kubeclient.Image, defaults *Collecto
 		Namespace: k8Image.NamespaceName,
 		Image:     k8Image.Image,
 		ImageId:   k8Image.ImageId,
+		ImageType: k8Image.ImageType,
 
 		Environment:            GetOrDefaultString(tags, annotationNames.Base+"environment", defaults.Environment),
 		Product:                GetOrDefaultString(tags, annotationNames.Base+"product", defaults.Product),

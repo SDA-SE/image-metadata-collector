@@ -491,6 +491,22 @@ func TestConvert(t *testing.T) {
 			}},
 		},
 		{
+			name:            "ImageTypeIsMapped",
+			defaults:        &CollectorImage{},
+			annotationNames: &AnnotationNames{},
+			targetK8Image: &[]kubeclient.Image{{
+				Image:         "quay.io/name:tag",
+				NamespaceName: "myNamespace",
+				ImageType:     kubeclient.ImageTypeCronJob,
+			}},
+			expectedCollectorImage: &[]CollectorImage{{
+				Namespace: "myNamespace",
+				Image:     "quay.io/name:tag",
+				ImageId:   "quay.io/name:tag",
+				ImageType: kubeclient.ImageTypeCronJob,
+			}},
+		},
+		{
 			name:                   "EmptyInputWithDefaultsResultsInDefaults",
 			defaults:               &defaults,
 			annotationNames:        &annotationNames,

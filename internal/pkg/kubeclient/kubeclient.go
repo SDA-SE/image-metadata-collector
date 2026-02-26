@@ -102,7 +102,15 @@ type Image struct {
 	NamespaceName string
 	Labels        map[string]string
 	Annotations   map[string]string
+	ImageType     string
 }
+
+const (
+	ImageTypeJob           = "job"
+	ImageTypeCronJob       = "cronjob"
+	ImageTypeInitContainer = "init_container"
+	ImageTypeOther         = "other"
+)
 
 // GetImages returns all images of all pods in the given namespaces
 // The Labels & Annotations of Pods and Namespaces are merged
@@ -132,21 +140,22 @@ func (c *Client) GetImages(namespaces *[]Namespace) (*[]Image, error) {
 			} else {
 				maps.Copy(annotations, namespace.Annotations)
 			}
-			// Get all container images
+			// Track regular and init containers separately so image type stays explicit.
 			containerImageMap := map[string]string{}
 			for _, container := range pod.Spec.Containers {
 				containerImageMap[container.Name] = container.Image
 			}
 
 			// Get all init container images
+			initContainerImageMap := map[string]string{}
 			for _, initContainer := range pod.Spec.InitContainers {
-				containerImageMap[initContainer.Name] = initContainer.Image
+				initContainerImageMap[initContainer.Name] = initContainer.Image
 			}
 			//	pod.Status.ContainerStatuses[0].Image=="minio/console:v0.19.4"
 
 			// Create images for all init containers with status
 			for _, status := range pod.Status.InitContainerStatuses {
-				var image = CreateImageAndAppend(containerImageMap, status, namespace, labels, annotations)
+				var image = CreateImageAndAppend(initContainerImageMap, status, namespace, labels, annotations, ImageTypeInitContainer)
 				if (&Image{} != &image) {
 					log.Info().Msgf("Adding image from init containers with Status: %s", image)
 					images = append(images, image)
@@ -155,11 +164,25 @@ func (c *Client) GetImages(namespaces *[]Namespace) (*[]Image, error) {
 
 			// Create images for all containers with status
 			for _, status := range pod.Status.ContainerStatuses {
-				var image = CreateImageAndAppend(containerImageMap, status, namespace, labels, annotations)
+				var image = CreateImageAndAppend(containerImageMap, status, namespace, labels, annotations, ImageTypeOther)
 				if (&Image{} != &image) {
 					log.Info().Msgf("Adding image from containers with Status: %s", image)
 					images = append(images, image)
 				}
+			}
+
+			// Add all remaining init container images for which no status exists.
+			for _, imageName := range initContainerImageMap {
+
+				image := Image{
+					Image:         imageName,
+					NamespaceName: namespace.Name,
+					Labels:        labels,
+					Annotations:   annotations,
+					ImageType:     ImageTypeInitContainer,
+				}
+				log.Info().Msgf("Adding image from init containers without Status: %s", image)
+				images = append(images, image)
 			}
 
 			// Add all remaining container images for which no status exists
@@ -170,6 +193,7 @@ func (c *Client) GetImages(namespaces *[]Namespace) (*[]Image, error) {
 					NamespaceName: namespace.Name,
 					Labels:        labels,
 					Annotations:   annotations,
+					ImageType:     ImageTypeOther,
 				}
 				log.Info().Msgf("Adding image from containers without Status: %s", image)
 				images = append(images, image)
@@ -200,27 +224,27 @@ func (c *Client) GetImages(namespaces *[]Namespace) (*[]Image, error) {
 				maps.Copy(annotations, namespace.Annotations)
 			}
 
-			// Get all container images
-			containerImageMap := map[string]string{}
-
 			// Reference: https://kubernetes.io/docs/concepts/workloads/controllers/job/
 			for _, container := range job.Spec.Template.Spec.Containers {
-				containerImageMap[container.Name] = container.Image
+				image := Image{
+					Image:         container.Image,
+					NamespaceName: namespace.Name,
+					Labels:        labels,
+					Annotations:   annotations,
+					ImageType:     ImageTypeJob,
+				}
+				log.Info().Msgf("Adding image from Jobs (without Status): %s", image)
+				images = append(images, image)
 			}
 
 			// Get all init container images
 			for _, initContainer := range job.Spec.Template.Spec.InitContainers {
-				containerImageMap[initContainer.Name] = initContainer.Image
-			}
-			// More references: https://sleeplessbeastie.eu/2024/01/31/how-to-create-job-and-cron-job/
-			// Add all remaining container images for which no status exists
-			for _, imageName := range containerImageMap {
-
 				image := Image{
-					Image:         imageName,
+					Image:         initContainer.Image,
 					NamespaceName: namespace.Name,
 					Labels:        labels,
 					Annotations:   annotations,
+					ImageType:     ImageTypeInitContainer,
 				}
 				log.Info().Msgf("Adding image from Jobs (without Status): %s", image)
 				images = append(images, image)
@@ -248,27 +272,27 @@ func (c *Client) GetImages(namespaces *[]Namespace) (*[]Image, error) {
 				maps.Copy(annotations, namespace.Annotations)
 			}
 
-			// Get all container images
-			containerImageMap := map[string]string{}
-
 			// Reference: https://kubernetes.io/docs/concepts/workloads/controllers/cron-jobs/
 			for _, container := range cronJob.Spec.JobTemplate.Spec.Template.Spec.Containers {
-				containerImageMap[container.Name] = container.Image
+				image := Image{
+					Image:         container.Image,
+					NamespaceName: namespace.Name,
+					Labels:        labels,
+					Annotations:   annotations,
+					ImageType:     ImageTypeCronJob,
+				}
+				log.Info().Msgf("Adding image from Cron Jobs (without Status): %s", image)
+				images = append(images, image)
 			}
 
 			// Get all init container images
 			for _, initContainer := range cronJob.Spec.JobTemplate.Spec.Template.Spec.InitContainers {
-				containerImageMap[initContainer.Name] = initContainer.Image
-			}
-
-			// Add all remaining container images for which no status exists
-			for _, imageName := range containerImageMap {
-
 				image := Image{
-					Image:         imageName,
+					Image:         initContainer.Image,
 					NamespaceName: namespace.Name,
 					Labels:        labels,
 					Annotations:   annotations,
+					ImageType:     ImageTypeInitContainer,
 				}
 				log.Info().Msgf("Adding image from Cron Jobs (without Status): %s", image)
 				images = append(images, image)
@@ -279,7 +303,7 @@ func (c *Client) GetImages(namespaces *[]Namespace) (*[]Image, error) {
 	return &images, nil
 }
 
-func CreateImageAndAppend(containerImageMap map[string]string, status v1.ContainerStatus, namespace Namespace, labels map[string]string, annotations map[string]string) Image {
+func CreateImageAndAppend(containerImageMap map[string]string, status v1.ContainerStatus, namespace Namespace, labels map[string]string, annotations map[string]string, imageType string) Image {
 
 	var imageName string
 	containerImage := containerImageMap[status.Name]
@@ -300,6 +324,7 @@ func CreateImageAndAppend(containerImageMap map[string]string, status v1.Contain
 		NamespaceName: namespace.Name,
 		Labels:        labels,
 		Annotations:   annotations,
+		ImageType:     imageType,
 	}
 	return image
 }
