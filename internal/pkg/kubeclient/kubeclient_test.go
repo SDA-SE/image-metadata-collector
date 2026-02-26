@@ -5,6 +5,7 @@ import (
 	"strings"
 	"testing"
 
+	batchv1 "k8s.io/api/batch/v1"
 	corev1 "k8s.io/api/core/v1"
 	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
 	"k8s.io/apimachinery/pkg/runtime"
@@ -880,5 +881,141 @@ func TestGetAllImages(t *testing.T) {
 			}
 
 		})
+	}
+}
+
+func TestGetImagesSetsImageType(t *testing.T) {
+	var client Client
+
+	namespaceName := "type-test"
+
+	client.Clientset = testclient.NewClientset(
+		&corev1.Namespace{
+			ObjectMeta: metav1.ObjectMeta{
+				Name: namespaceName,
+			},
+		},
+		&corev1.Pod{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "pod-1",
+				Namespace: namespaceName,
+			},
+			Spec: corev1.PodSpec{
+				InitContainers: []corev1.Container{
+					{
+						Name:  "pod-init",
+						Image: "img-pod-init:1",
+					},
+				},
+				Containers: []corev1.Container{
+					{
+						Name:  "pod-main",
+						Image: "img-pod-main:1",
+					},
+				},
+			},
+			Status: corev1.PodStatus{
+				InitContainerStatuses: []corev1.ContainerStatus{
+					{
+						Name:    "pod-init",
+						Image:   "img-pod-init:1",
+						ImageID: "img-pod-init@sha256:1",
+					},
+				},
+				ContainerStatuses: []corev1.ContainerStatus{
+					{
+						Name:    "pod-main",
+						Image:   "img-pod-main:1",
+						ImageID: "img-pod-main@sha256:1",
+					},
+				},
+			},
+		},
+		&batchv1.Job{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "job-1",
+				Namespace: namespaceName,
+			},
+			Spec: batchv1.JobSpec{
+				Template: corev1.PodTemplateSpec{
+					Spec: corev1.PodSpec{
+						InitContainers: []corev1.Container{
+							{
+								Name:  "job-init",
+								Image: "img-job-init:1",
+							},
+						},
+						Containers: []corev1.Container{
+							{
+								Name:  "job-main",
+								Image: "img-job-main:1",
+							},
+						},
+					},
+				},
+			},
+		},
+		&batchv1.CronJob{
+			ObjectMeta: metav1.ObjectMeta{
+				Name:      "cronjob-1",
+				Namespace: namespaceName,
+			},
+			Spec: batchv1.CronJobSpec{
+				Schedule: "*/5 * * * *",
+				JobTemplate: batchv1.JobTemplateSpec{
+					Spec: batchv1.JobSpec{
+						Template: corev1.PodTemplateSpec{
+							Spec: corev1.PodSpec{
+								InitContainers: []corev1.Container{
+									{
+										Name:  "cron-init",
+										Image: "img-cron-init:1",
+									},
+								},
+								Containers: []corev1.Container{
+									{
+										Name:  "cron-main",
+										Image: "img-cron-main:1",
+									},
+								},
+							},
+						},
+					},
+				},
+			},
+		},
+	)
+
+	images, err := client.GetImages(&[]Namespace{{Name: namespaceName}})
+	if err != nil {
+		t.Fatalf("GetImages returned error: %v", err)
+	}
+
+	gotTypes := map[string]string{}
+	for _, image := range *images {
+		gotTypes[image.Image] = image.ImageType
+	}
+
+	expectedTypes := map[string]string{
+		"img-pod-main:1":  ImageTypeOther,
+		"img-pod-init:1":  ImageTypeInitContainer,
+		"img-job-main:1":  ImageTypeJob,
+		"img-job-init:1":  ImageTypeInitContainer,
+		"img-cron-main:1": ImageTypeCronJob,
+		"img-cron-init:1": ImageTypeInitContainer,
+	}
+
+	if len(gotTypes) != len(expectedTypes) {
+		t.Fatalf("Expected %d images but got %d: %+v", len(expectedTypes), len(gotTypes), gotTypes)
+	}
+
+	for imageName, expectedType := range expectedTypes {
+		gotType, ok := gotTypes[imageName]
+		if !ok {
+			t.Fatalf("Missing expected image %s", imageName)
+		}
+		if gotType != expectedType {
+			t.Fatalf("Unexpected image type for %s: expected %s, got %s", imageName, expectedType, gotType)
+		}
 	}
 }
