@@ -41,6 +41,7 @@ func main() {
 func newCommand() *cobra.Command {
 	cfg := &config.Config{}
 	var ownersFlag string
+	var notificationsFlag string
 
 	c := &cobra.Command{
 		Use:   AppName,
@@ -55,6 +56,12 @@ func newCommand() *cobra.Command {
 			if ownersFlag != "" {
 				if err := json.Unmarshal([]byte(ownersFlag), &cfg.Owners); err != nil {
 					return fmt.Errorf("could not parse owners flag: %w", err)
+				}
+			}
+			// Parse notifications JSON string into Notification
+			if notificationsFlag != "" {
+				if err := json.Unmarshal([]byte(notificationsFlag), &cfg.Notifications); err != nil {
+					return fmt.Errorf("could not parse notifications flag: %w", err)
 				}
 			}
 			// Set the logging level based on the debug flag
@@ -96,8 +103,9 @@ func newCommand() *cobra.Command {
 	c.PersistentFlags().StringVar(&cfg.ApiEndpoint, "api-endpoint", "", "API Endpoint, e.g. https://example.io/v1/account/$ACCOUNT/cluster/$CLUSTER/image-collector-report/images")
 	// HTTP Headers
 	// use like: --http-header "Authorization:Bearer token" --http-header "Content-Type:application/json"
-	pflag.StringArrayVar(&cfg.HTTPHeaders, "http-header", []string{}, "List of HTTP headers in 'key:value' format. Repeat flag for multiple headers.")
-
+	if pflag.Lookup("http-header") == nil {
+		pflag.StringArrayVar(&cfg.HTTPHeaders, "http-header", []string{}, "List of HTTP headers in 'key:value' format. Repeat flag for multiple headers.")
+	}
 	// Annotation Key/Name Config
 	c.PersistentFlags().StringVar(&cfg.Base, "annotation-name-base", "sdase.org/", "Annotation name for general annotations")
 	c.PersistentFlags().StringVar(&cfg.Scans, "annotation-name-scans", "clusterscanner.sdase.org/", "Annotation name for scan related annotations")
@@ -122,11 +130,9 @@ func newCommand() *cobra.Command {
 	c.PersistentFlags().StringSliceVar(&cfg.EngagementTags, "engagement-tags", []string{}, "Default engagement tags to use")
 	c.PersistentFlags().StringVar(&cfg.ContainerType, "container-type", "application", "Default container-type to use")
 	c.PersistentFlags().StringVar(&cfg.Team, "team", "", "Default team to use")
-	c.PersistentFlags().StringVar(&cfg.TeamUuid, "team_uuid", "", "Default team uuid to use")
 	c.PersistentFlags().StringVar(&cfg.Product, "product", "", "Default product to use")
-	c.PersistentFlags().StringVar(&cfg.Slack, "slack", "", "Default slack channel to use")
-	c.PersistentFlags().StringVar(&cfg.Email, "email", "", "Default email to use")
 	c.PersistentFlags().StringVar(&ownersFlag, "owners", "", "List of owners as JSON array e.g. '[{\"role\":\"admin\",\"uuid\":\"1234\",\"name\":\"Alice\"}]'")
+	c.PersistentFlags().StringVar(&notificationsFlag, "notifications", "", "Notification as JSON object array e.g. '{\"slack\":[\"channel1\",\"channel2\"],\"emails\":[\"admin@c.de\",\"super-admin+devops@c.de\"],\"ms_teams\":[\"1234689745631@teams.microsoft.ms\"]}'")
 	c.PersistentFlags().StringVar(&cfg.NamespaceFilter, "namespace-filter", "", "Default namespace filter to use")
 	c.PersistentFlags().StringVar(&cfg.NamespaceFilterNegated, "negated_namespace_filter", "", "Default negated namespace filter to use")
 

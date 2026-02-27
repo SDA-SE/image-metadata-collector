@@ -25,6 +25,12 @@ type Owner struct {
 	Name string `json:"name"`
 }
 
+type Notifications struct {
+	Slack   []string `json:"slack"`
+	Emails  []string `json:"emails"`
+	MSTeams []string `json:"ms_teams"`
+}
+
 type CollectorImage struct {
 	Namespace string `json:"namespace"`
 	Image     string `json:"image"`
@@ -43,11 +49,9 @@ type CollectorImage struct {
 	NamespaceFilterNegated string   `json:"namespace_filter_negated"`
 	EngagementTags         []string `json:"engagement_tags"`
 
-	Team     string  `json:"team"`
-	TeamUuid string  `json:"team_uuid"`
-	Slack    string  `json:"slack"`
-	Email    string  `json:"email"`
-	Owners   []Owner `json:"owners"`
+	Team          string        `json:"team"`
+	Owners        []Owner       `json:"owners"`
+	Notifications Notifications `json:"notifications"`
 
 	IsScanBaseimageLifetime          bool  `json:"is_scan_baseimage_lifetime"`
 	IsScanDependencyCheck            bool  `json:"is_scan_dependency_check"`
@@ -94,11 +98,9 @@ func convertK8ImageToCollectorImage(k8Image kubeclient.Image, defaults *Collecto
 		NamespaceFilterNegated: GetOrDefaultString(tags, annotationNames.Scans+"negated_namespace_filter", defaults.NamespaceFilterNegated),
 		EngagementTags:         GetOrDefaultStringSlice(tags, annotationNames.DefectDojo+"engagement-tags", defaults.EngagementTags),
 
-		Team:     GetOrDefaultString(tags, annotationNames.Contact+"team", defaults.Team),
-		TeamUuid: GetOrDefaultString(tags, annotationNames.Contact+"team_uuid", defaults.TeamUuid),
-		Slack:    GetOrDefaultString(tags, annotationNames.Contact+"slack", defaults.Slack),
-		Email:    GetOrDefaultString(tags, annotationNames.Contact+"email", defaults.Email),
-		Owners:   GetOrDefaultOwners(tags, annotationNames.Contact+"owners", defaults.Owners),
+		Team:          GetOrDefaultString(tags, annotationNames.Contact+"team", defaults.Team),
+		Owners:        GetOrDefaultOwners(tags, annotationNames.Contact+"owners", defaults.Owners),
+		Notifications: GetOrDefaultNotifications(tags, annotationNames.Contact+"notifications", defaults.Notifications),
 
 		IsScanBaseimageLifetime:          GetOrDefaultBool(tags, annotationNames.Scans+"is-scan-baseimage-lifetime", defaults.IsScanBaseimageLifetime),
 		IsScanDependencyCheck:            GetOrDefaultBool(tags, annotationNames.Scans+"is-scan-dependency-check", defaults.IsScanDependencyCheck),
