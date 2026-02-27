@@ -111,7 +111,9 @@ func TestNewCommand_ValidOwnersFlag(t *testing.T) {
 
 func TestNewCommand_InvalidOwnersFlag(t *testing.T) {
 	cmd := newCommand()
-	cmd.PersistentFlags().Set("owners", "not-valid-json")
+	if err := cmd.PersistentFlags().Set("owners", "not-valid-json"); err != nil {
+		t.Fatalf("failed to set notifications flag: %v", err)
+	}
 
 	preRunE := cmd.PersistentPreRunE
 	if err := preRunE(cmd, []string{}); err == nil {
@@ -121,8 +123,9 @@ func TestNewCommand_InvalidOwnersFlag(t *testing.T) {
 
 func TestNewCommand_ValidNotificationsFlag(t *testing.T) {
 	cmd := newCommand()
-	cmd.PersistentFlags().Set("notifications", `{"slack": ["#channel"], "emails": ["test@example.com"], "msteams": ["team-a"]}`)
-
+	if err := cmd.PersistentFlags().Set("notifications", `{"slack": ["#channel"], "emails": ["test@example.com"], "msteams": ["team-a"]}`); err != nil {
+		t.Fatalf("failed to set notifications flag: %v", err)
+	}
 	preRunE := cmd.PersistentPreRunE
 	if err := preRunE(cmd, []string{}); err != nil {
 		t.Errorf("unexpected error with valid notifications flag: %v", err)
@@ -131,7 +134,9 @@ func TestNewCommand_ValidNotificationsFlag(t *testing.T) {
 
 func TestNewCommand_InvalidNotificationsFlag(t *testing.T) {
 	cmd := newCommand()
-	cmd.PersistentFlags().Set("notifications", "not-valid-json")
+	if err := cmd.PersistentFlags().Set("notifications", "not-valid-json"); err != nil {
+		t.Fatalf("failed to set notifications flag: %v", err)
+	}
 
 	preRunE := cmd.PersistentPreRunE
 	if err := preRunE(cmd, []string{}); err == nil {
