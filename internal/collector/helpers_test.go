@@ -315,6 +315,77 @@ func TestGetOrDefaultOwners(t *testing.T) {
 	}
 }
 
+// --- GetOrDefaultNotifications ---
+func TestGetOrDefaultNotifications_ValidJSON(t *testing.T) {
+	notifications := Notifications{
+		Slack:    []string{"#channel-a", "#channel-b"},
+		Emails:   []string{"alice@example.com", "bob@example.com"},
+		MS_Teams: []string{"team-a", "team-b"},
+	}
+	data, _ := json.Marshal(notifications)
+	m := map[string]string{"notifications": string(data)}
+
+	got := GetOrDefaultNotifications(m, "notifications", Notifications{})
+	if len(got.Slack) != 2 || got.Slack[0] != "#channel-a" || got.Slack[1] != "#channel-b" {
+		t.Errorf("unexpected Slack: %v", got.Slack)
+	}
+	if len(got.Emails) != 2 || got.Emails[0] != "alice@example.com" {
+		t.Errorf("unexpected Emails: %v", got.Emails)
+	}
+	if len(got.MS_Teams) != 2 || got.MS_Teams[0] != "team-a" {
+		t.Errorf("unexpected MS_Teams: %v", got.MS_Teams)
+	}
+}
+
+func TestGetOrDefaultNotifications_KeyMissing_ReturnsDefault(t *testing.T) {
+	m := map[string]string{}
+	def := Notifications{Slack: []string{"#default"}}
+	got := GetOrDefaultNotifications(m, "notifications", def)
+	if len(got.Slack) != 1 || got.Slack[0] != "#default" {
+		t.Errorf("expected default notifications, got %v", got)
+	}
+}
+
+func TestGetOrDefaultNotifications_EmptyValue_ReturnsDefault(t *testing.T) {
+	m := map[string]string{"notifications": ""}
+	def := Notifications{Emails: []string{"fallback@example.com"}}
+	got := GetOrDefaultNotifications(m, "notifications", def)
+	if len(got.Emails) != 1 || got.Emails[0] != "fallback@example.com" {
+		t.Errorf("expected default notifications for empty value, got %v", got)
+	}
+}
+
+func TestGetOrDefaultNotifications_InvalidJSON_ReturnsDefault(t *testing.T) {
+	m := map[string]string{"notifications": "not-valid-json"}
+	def := Notifications{MS_Teams: []string{"fallback-team"}}
+	got := GetOrDefaultNotifications(m, "notifications", def)
+	if len(got.MS_Teams) != 1 || got.MS_Teams[0] != "fallback-team" {
+		t.Errorf("expected default notifications on invalid JSON, got %v", got)
+	}
+}
+
+func TestGetOrDefaultNotifications_PartialJSON(t *testing.T) {
+	m := map[string]string{"notifications": `{"slack":["#only-slack"]}`}
+	got := GetOrDefaultNotifications(m, "notifications", Notifications{})
+	if len(got.Slack) != 1 || got.Slack[0] != "#only-slack" {
+		t.Errorf("unexpected Slack: %v", got.Slack)
+	}
+	if len(got.Emails) != 0 {
+		t.Errorf("expected empty Emails, got %v", got.Emails)
+	}
+	if len(got.MS_Teams) != 0 {
+		t.Errorf("expected empty MS_Teams, got %v", got.MS_Teams)
+	}
+}
+
+func TestGetOrDefaultNotifications_EmptyArrays(t *testing.T) {
+	m := map[string]string{"notifications": `{"slack":[],"emails":[],"ms_teams":[]}`}
+	got := GetOrDefaultNotifications(m, "notifications", Notifications{Slack: []string{"#default"}})
+	if len(got.Slack) != 0 {
+		t.Errorf("expected empty Slack, got %v", got.Slack)
+	}
+}
+
 // --- JsonIndentMarshal ---
 func TestJsonIndentMarshal_ValidInput(t *testing.T) {
 	input := []Owner{{Role: "admin", Uuid: "1234", Name: "Alice"}}

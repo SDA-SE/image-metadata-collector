@@ -82,6 +82,21 @@ func GetOrDefaultOwners(tags map[string]string, key string, defaultValue []Owner
 	return owners
 }
 
+func GetOrDefaultNotifications(tags map[string]string, key string, defaultValue Notifications) Notifications {
+	value, ok := tags[key]
+	if !ok || value == "" {
+		return defaultValue
+	}
+
+	var notifications Notifications
+	if err := json.Unmarshal([]byte(value), &notifications); err != nil {
+		log.Warn().Err(err).Msgf("Could not parse notifications from tag %s", key)
+		return defaultValue
+	}
+
+	return notifications
+}
+
 type JsonMarshal func(any) ([]byte, error)
 
 func JsonIndentMarshal(v any) ([]byte, error) {
