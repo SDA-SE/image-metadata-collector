@@ -26,9 +26,9 @@ type Owner struct {
 }
 
 type Notifications struct {
-	Slack    []string `json:"slack"`
-	Emails   []string `json:"emails"`
-	MS_Teams []string `json:"ms_teams"`
+	Slack   []string `json:"slack"`
+	Emails  []string `json:"emails"`
+	MSTeams []string `json:"ms_teams"`
 }
 
 type CollectorImage struct {

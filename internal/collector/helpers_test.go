@@ -318,9 +318,9 @@ func TestGetOrDefaultOwners(t *testing.T) {
 // --- GetOrDefaultNotifications ---
 func TestGetOrDefaultNotifications_ValidJSON(t *testing.T) {
 	notifications := Notifications{
-		Slack:    []string{"#channel-a", "#channel-b"},
-		Emails:   []string{"alice@example.com", "bob@example.com"},
-		MS_Teams: []string{"team-a", "team-b"},
+		Slack:   []string{"#channel-a", "#channel-b"},
+		Emails:  []string{"alice@example.com", "bob@example.com"},
+		MSTeams: []string{"team-a", "team-b"},
 	}
 	data, _ := json.Marshal(notifications)
 	m := map[string]string{"notifications": string(data)}
@@ -332,8 +332,8 @@ func TestGetOrDefaultNotifications_ValidJSON(t *testing.T) {
 	if len(got.Emails) != 2 || got.Emails[0] != "alice@example.com" {
 		t.Errorf("unexpected Emails: %v", got.Emails)
 	}
-	if len(got.MS_Teams) != 2 || got.MS_Teams[0] != "team-a" {
-		t.Errorf("unexpected MS_Teams: %v", got.MS_Teams)
+	if len(got.MSTeams) != 2 || got.MSTeams[0] != "team-a" {
+		t.Errorf("unexpected MSTeams: %v", got.MSTeams)
 	}
 }
 
@@ -357,9 +357,9 @@ func TestGetOrDefaultNotifications_EmptyValue_ReturnsDefault(t *testing.T) {
 
 func TestGetOrDefaultNotifications_InvalidJSON_ReturnsDefault(t *testing.T) {
 	m := map[string]string{"notifications": "not-valid-json"}
-	def := Notifications{MS_Teams: []string{"fallback-team"}}
+	def := Notifications{MSTeams: []string{"fallback-team"}}
 	got := GetOrDefaultNotifications(m, "notifications", def)
-	if len(got.MS_Teams) != 1 || got.MS_Teams[0] != "fallback-team" {
+	if len(got.MSTeams) != 1 || got.MSTeams[0] != "fallback-team" {
 		t.Errorf("expected default notifications on invalid JSON, got %v", got)
 	}
 }
@@ -373,8 +373,8 @@ func TestGetOrDefaultNotifications_PartialJSON(t *testing.T) {
 	if len(got.Emails) != 0 {
 		t.Errorf("expected empty Emails, got %v", got.Emails)
 	}
-	if len(got.MS_Teams) != 0 {
-		t.Errorf("expected empty MS_Teams, got %v", got.MS_Teams)
+	if len(got.MSTeams) != 0 {
+		t.Errorf("expected empty MSTeams, got %v", got.MSTeams)
 	}
 }
 

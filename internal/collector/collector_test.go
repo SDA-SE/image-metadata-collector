@@ -809,9 +809,9 @@ func TestConvert(t *testing.T) {
 				ImageId:   "quay.io/name:tag",
 				ImageType: kubeclient.ImageTypeCronJob,
 				Notifications: Notifications{
-					Slack:    []string{"channel1", "channel2"},
-					Emails:   []string{"admin@company.de", "super-admin+devops@company.de"},
-					MS_Teams: []string{"1234689745631@teams.microsoft.ms"},
+					Slack:   []string{"channel1", "channel2"},
+					Emails:  []string{"admin@company.de", "super-admin+devops@company.de"},
+					MSTeams: []string{"1234689745631@teams.microsoft.ms"},
 				},
 			}},
 		},
