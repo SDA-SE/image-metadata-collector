@@ -188,7 +188,7 @@ func (api ApiConfig) prepareContent(content []byte) (preparedContent, error) {
 
 	return prepared, nil
 }
-
+/*
 func (api ApiConfig) uploadDirect(prepared preparedContent) (*http.Response, error) {
 	request, err := http.NewRequest(http.MethodPut, api.ApiEndpoint, bytes.NewReader(prepared.body))
 	if err != nil {
@@ -202,7 +202,7 @@ func (api ApiConfig) uploadDirect(prepared preparedContent) (*http.Response, err
 
 	return api.httpClient().Do(request)
 }
-
+*/
 func (api ApiConfig) uploadMultipart(prepared preparedContent) error {
 	endpoints, err := api.multipartEndpoints()
 	if err != nil {
