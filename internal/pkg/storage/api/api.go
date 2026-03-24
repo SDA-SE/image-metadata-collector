@@ -148,17 +148,17 @@ func (api ApiConfig) Write(content []byte) (int, error) {
 	}
 	*/
 	//if res.StatusCode == http.StatusRequestEntityTooLarge && prepared.requiresCompression {
-	if true {
+	//if true {
 		log.Info().Msg("Direct upload returned 413 for large payload, retrying via multipart upload")
 		if err := api.uploadMultipart(prepared); err != nil {
 			return 0, err
 		}
 
 		return len(content), nil
-	}
+	//}
 
-	log.Error().Msgf("Error sending request, got StatusCode: %s", res.Status)
-	return 0, fmt.Errorf("got a Status '%s' instead of an '200 OK' response for API request", res.Status)
+	//log.Error().Msgf("Error sending request, got StatusCode: %s", res.Status)
+	//return 0, fmt.Errorf("got a Status '%s' instead of an '200 OK' response for API request", res.Status)
 }
 
 func (api ApiConfig) prepareContent(content []byte) (preparedContent, error) {
