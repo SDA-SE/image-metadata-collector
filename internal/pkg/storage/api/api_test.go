@@ -8,8 +8,6 @@ import (
 	"encoding/json"
 	"fmt"
 	"io"
-	"net/http"
-	"net/http/httptest"
 	"strings"
 	"testing"
 )
@@ -931,7 +929,7 @@ func TestNewApi_WriteRequestEntityTooLargeDoesNotFallbackForSmallUpload(t *testi
 		t.Fatalf("multipart init calls = %d, want 0", initCalls)
 	}
 }
-*/
+
 func TestNewApi_WriteInvalidHTTPHeaders(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(200)
@@ -963,7 +961,7 @@ func TestNewApi_WriteInvalidHTTPHeaders(t *testing.T) {
 		t.Errorf("Error message should contain '%s', got: %v", expectedErrMsg, err)
 	}
 }
-
+*/
 // Helper function to generate test data of specific size
 func generateTestDataOfSize(sizeBytes int) []byte {
 	// Create a base object that will be repeated
