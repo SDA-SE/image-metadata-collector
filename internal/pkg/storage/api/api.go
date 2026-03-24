@@ -12,7 +12,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
-const maxDirectUploadSize = 6 * 1024 * 1024
+//const maxDirectUploadSize = 6 * 1024 * 1024
+const maxDirectUploadSize = 6 * 1024
 
 type ApiConfig struct {
 	ApiKey       string
