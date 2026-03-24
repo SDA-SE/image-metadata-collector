@@ -3,8 +3,14 @@ package api
 import (
 	"bytes"
 	"compress/gzip"
+	"crypto/rand"
+	"encoding/base64"
 	"encoding/json"
+	"fmt"
 	"io"
+	"net/http"
+	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -471,7 +477,6 @@ func TestNewApi_ConfigIsolation(t *testing.T) {
 	}
 }
 
-/*
 func TestNewApi_WriteWithCompression(t *testing.T) {
 	tests := []struct {
 		name              string
@@ -658,8 +663,7 @@ func TestNewApi_WriteWithCompression(t *testing.T) {
 		})
 	}
 }
-*/
-/*
+
 func TestNewApi_WriteDataTooLargeEvenAfterCompression(t *testing.T) {
 	config := &ApiConfig{
 		ApiKey:       "test-key",
@@ -1028,4 +1032,3 @@ func generateIncompressibleData(sizeBytes int) []byte {
 	jsonStr := fmt.Sprintf(`{"incompressible_data": "%s"}`, encodedData)
 	return []byte(jsonStr)
 }
-*/

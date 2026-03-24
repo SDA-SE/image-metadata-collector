@@ -132,7 +132,7 @@ func (api ApiConfig) Write(content []byte) (int, error) {
 
 		return len(content), nil
 	}
-	/*
+	
 	res, err := api.uploadDirect(prepared)
 	if err != nil {
 		log.Error().Msgf("Error sending request: %s", err)
@@ -146,19 +146,18 @@ func (api ApiConfig) Write(content []byte) (int, error) {
 		log.Info().Msgf("Upload Succeeded, Status: %s", res.Status)
 		return len(content), nil
 	}
-	*/
-	//if res.StatusCode == http.StatusRequestEntityTooLarge && prepared.requiresCompression {
-	//if true {
+	
+	if res.StatusCode == http.StatusRequestEntityTooLarge && prepared.requiresCompression {
 		log.Info().Msg("Direct upload returned 413 for large payload, retrying via multipart upload")
 		if err := api.uploadMultipart(prepared); err != nil {
 			return 0, err
 		}
 
 		return len(content), nil
-	//}
+	}
 
-	//log.Error().Msgf("Error sending request, got StatusCode: %s", res.Status)
-	//return 0, fmt.Errorf("got a Status '%s' instead of an '200 OK' response for API request", res.Status)
+	log.Error().Msgf("Error sending request, got StatusCode: %s", res.Status)
+	return 0, fmt.Errorf("got a Status '%s' instead of an '200 OK' response for API request", res.Status)
 }
 
 func (api ApiConfig) prepareContent(content []byte) (preparedContent, error) {
@@ -188,7 +187,7 @@ func (api ApiConfig) prepareContent(content []byte) (preparedContent, error) {
 
 	return prepared, nil
 }
-/*
+
 func (api ApiConfig) uploadDirect(prepared preparedContent) (*http.Response, error) {
 	request, err := http.NewRequest(http.MethodPut, api.ApiEndpoint, bytes.NewReader(prepared.body))
 	if err != nil {
@@ -202,7 +201,7 @@ func (api ApiConfig) uploadDirect(prepared preparedContent) (*http.Response, err
 
 	return api.httpClient().Do(request)
 }
-*/
+
 func (api ApiConfig) uploadMultipart(prepared preparedContent) error {
 	endpoints, err := api.multipartEndpoints()
 	if err != nil {
@@ -224,7 +223,7 @@ func (api ApiConfig) uploadMultipart(prepared preparedContent) error {
 		return cause
 	}
 
-	log.Info().Msg("Calling init")
+	log.Debug().Msg("Calling init")
 	if err := api.postAPIJSON(endpoints.init, nil, &initResponse); err != nil {
 		return err
 	}
@@ -236,7 +235,7 @@ func (api ApiConfig) uploadMultipart(prepared preparedContent) error {
 	if initResponse.PartSize <= 0 {
 		return abortUpload(fmt.Errorf("multipart init response returned invalid part_size %d", initResponse.PartSize))
 	}
-	log.Info().Msgf("Called init upload-id %s, key: %s, partsize %d", initResponse.UploadID, initResponse.Key, initResponse.PartSize)
+	log.Debug().Msgf("Called init upload-id %s, key: %s, partsize %d", initResponse.UploadID, initResponse.Key, initResponse.PartSize)
 
 	totalParts := (len(prepared.body) + initResponse.PartSize - 1) / initResponse.PartSize
 	if totalParts == 0 {
@@ -271,7 +270,7 @@ func (api ApiConfig) uploadMultipart(prepared preparedContent) error {
 		if err != nil {
 			return abortUpload(err)
 		}
-		log.Info().Msgf("Uploaded part %d, etag %s",partNumber,etag)
+		log.Debug().Msgf("Uploaded part %d, etag %s",partNumber,etag)
 		uploadedParts = append(uploadedParts, multipartUploadPart{
 			PartNumber: partNumber,
 			ETag:       etag,
@@ -289,7 +288,7 @@ func (api ApiConfig) uploadMultipart(prepared preparedContent) error {
 		return abortUpload(err)
 	}
 
-	log.Info().Int("parts", len(uploadedParts)).Msg("Multipart upload succeeded")
+	log.Debug().Int("parts", len(uploadedParts)).Msg("Multipart upload succeeded")
 	return nil
 }
 
