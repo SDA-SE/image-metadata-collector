@@ -224,6 +224,7 @@ func (api ApiConfig) uploadMultipart(prepared preparedContent) error {
 		return cause
 	}
 
+	log.Info().Msg("Calling init")
 	if err := api.postAPIJSON(endpoints.init, nil, &initResponse); err != nil {
 		return err
 	}
@@ -235,6 +236,7 @@ func (api ApiConfig) uploadMultipart(prepared preparedContent) error {
 	if initResponse.PartSize <= 0 {
 		return abortUpload(fmt.Errorf("multipart init response returned invalid part_size %d", initResponse.PartSize))
 	}
+	log.Info().Msgf("Called init upload-id %s, key: %s, partsize %d", initResponse.UploadID, initResponse.Key, initResponse.PartSize)
 
 	totalParts := (len(prepared.body) + initResponse.PartSize - 1) / initResponse.PartSize
 	if totalParts == 0 {
@@ -269,7 +271,7 @@ func (api ApiConfig) uploadMultipart(prepared preparedContent) error {
 		if err != nil {
 			return abortUpload(err)
 		}
-
+		log.Info().Msgf("Uploaded part %d, etag %s",partNumber,etag)
 		uploadedParts = append(uploadedParts, multipartUploadPart{
 			PartNumber: partNumber,
 			ETag:       etag,
