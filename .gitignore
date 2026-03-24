@@ -32,3 +32,5 @@ go.work
 # Built Visual Studio Code Extensions
 *.vsix
 /test_actions/imagecollector/tmp/
+
+AGENTS.md

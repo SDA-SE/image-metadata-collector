@@ -10,6 +10,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"strconv"
 	"strings"
 	"testing"
 )
@@ -664,17 +665,10 @@ func TestNewApi_WriteWithCompression(t *testing.T) {
 }
 
 func TestNewApi_WriteDataTooLargeEvenAfterCompression(t *testing.T) {
-	// Create test server that should never be called
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
-		t.Error("Server should not be called for data that's too large even after compression")
-		w.WriteHeader(500)
-	}))
-	defer server.Close()
-
 	config := &ApiConfig{
 		ApiKey:       "test-key",
 		ApiSignature: "test-signature",
-		ApiEndpoint:  server.URL,
+		ApiEndpoint:  "https://api.example.com/upload",
 	}
 
 	writer, err := NewApi(config)
@@ -684,17 +678,256 @@ func TestNewApi_WriteDataTooLargeEvenAfterCompression(t *testing.T) {
 
 	// Generate data that won't compress well (random-ish data)
 	// This simulates data that even after compression is still > 6MB
-	incompressibleData := generateIncompressibleData(80 * 1024 * 1024) // 8MB of poorly compressible data
+	incompressibleData := generateIncompressibleData(9 * 1024 * 1024)
 
 	_, err = writer.Write(incompressibleData)
 	if err == nil {
-		t.Error("Write() should fail for data that's too large even after compression")
+		t.Error("Write() should fail when multipart endpoints cannot be derived")
 		return
 	}
 
-	expectedErrMsg := "content size is too large"
+	expectedErrMsg := "must end with /images"
 	if !strings.Contains(err.Error(), expectedErrMsg) {
 		t.Errorf("Error message should contain '%s', got: %v", expectedErrMsg, err)
+	}
+}
+
+func TestNewApi_WriteMultipartUpload(t *testing.T) {
+	testData := generateIncompressibleData(9 * 1024 * 1024)
+	config := &ApiConfig{
+		ApiKey:       "test-key",
+		ApiSignature: "test-signature",
+		HTTPHeaders:  []string{"X-Custom-Header:test-value"},
+	}
+
+	prepared, err := config.prepareContent(testData)
+	if err != nil {
+		t.Fatalf("prepareContent() failed: %v", err)
+	}
+	if !prepared.requiresMultipart {
+		t.Fatal("expected multipart upload to be required")
+	}
+
+	var initHeaders http.Header
+	var partBodies [][]byte
+	var s3RequestHeaders []http.Header
+	var completed multipartCompleteRequest
+
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/images/upload/init":
+			initHeaders = r.Header.Clone()
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(multipartInitResponse{
+				UploadID: "upload-1",
+				Key:      "reports/object.json.gz",
+				PartSize: 1024 * 1024,
+				MaxParts: 20,
+			})
+		case r.Method == http.MethodPost && r.URL.Path == "/images/upload/part":
+			var req multipartPartRequest
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				t.Fatalf("failed to decode part request: %v", err)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(multipartPartResponse{
+				URL:        server.URL + "/s3/" + strconv.Itoa(req.PartNumber),
+				PartNumber: req.PartNumber,
+			})
+		case r.Method == http.MethodPut && strings.HasPrefix(r.URL.Path, "/s3/"):
+			body, readErr := io.ReadAll(r.Body)
+			if readErr != nil {
+				t.Fatalf("failed to read s3 request body: %v", readErr)
+			}
+			partBodies = append(partBodies, body)
+			s3RequestHeaders = append(s3RequestHeaders, r.Header.Clone())
+			w.Header().Set("ETag", fmt.Sprintf("\"etag-%d\"", len(partBodies)))
+			w.WriteHeader(http.StatusOK)
+		case r.Method == http.MethodPost && r.URL.Path == "/images/upload/complete":
+			if err := json.NewDecoder(r.Body).Decode(&completed); err != nil {
+				t.Fatalf("failed to decode complete request: %v", err)
+			}
+			w.WriteHeader(http.StatusOK)
+		default:
+			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	config.ApiEndpoint = server.URL + "/images"
+	writer, err := NewApi(config)
+	if err != nil {
+		t.Fatalf("NewApi() failed: %v", err)
+	}
+
+	bytesWritten, err := writer.Write(testData)
+	if err != nil {
+		t.Fatalf("Write() failed: %v", err)
+	}
+	if bytesWritten != len(testData) {
+		t.Fatalf("Write() bytesWritten = %d, want %d", bytesWritten, len(testData))
+	}
+
+	if initHeaders.Get("x-api-key") != "test-key" {
+		t.Fatalf("init request missing api key header")
+	}
+	if initHeaders.Get("X-Custom-Header") != "test-value" {
+		t.Fatalf("init request missing custom header")
+	}
+	if len(partBodies) != len(completed.Parts) {
+		t.Fatalf("uploaded parts = %d, completed parts = %d", len(partBodies), len(completed.Parts))
+	}
+
+	var combined bytes.Buffer
+	for index, body := range partBodies {
+		combined.Write(body)
+		if completed.Parts[index].PartNumber != index+1 {
+			t.Fatalf("completed part number %d = %d, want %d", index, completed.Parts[index].PartNumber, index+1)
+		}
+		if completed.Parts[index].ETag != fmt.Sprintf("\"etag-%d\"", index+1) {
+			t.Fatalf("completed part etag %d = %s", index, completed.Parts[index].ETag)
+		}
+	}
+
+	if !bytes.Equal(combined.Bytes(), prepared.body) {
+		t.Fatal("uploaded multipart payload does not match prepared content")
+	}
+	if completed.ContentEncoding != "gzip" {
+		t.Fatalf("complete request content encoding = %s, want gzip", completed.ContentEncoding)
+	}
+	for _, headers := range s3RequestHeaders {
+		if headers.Get("x-api-key") != "" {
+			t.Fatal("s3 upload request should not include api auth headers")
+		}
+	}
+}
+
+func TestNewApi_WriteRequestEntityTooLargeFallsBackToMultipartForLargeCompressedUpload(t *testing.T) {
+	testData := generateTestDataOfSize(7 * 1024 * 1024)
+	config := &ApiConfig{
+		ApiKey:       "test-key",
+		ApiSignature: "test-signature",
+	}
+
+	prepared, err := config.prepareContent(testData)
+	if err != nil {
+		t.Fatalf("prepareContent() failed: %v", err)
+	}
+	if !prepared.requiresCompression {
+		t.Fatal("expected compressed direct upload for large payload")
+	}
+	if prepared.requiresMultipart {
+		t.Fatal("expected direct upload attempt before multipart fallback")
+	}
+
+	directUploads := 0
+	initCalls := 0
+	var completed multipartCompleteRequest
+
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPut && r.URL.Path == "/images":
+			directUploads++
+			w.WriteHeader(http.StatusRequestEntityTooLarge)
+		case r.Method == http.MethodPost && r.URL.Path == "/images/upload/init":
+			initCalls++
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(multipartInitResponse{
+				UploadID: "upload-413",
+				Key:      "reports/object.json.gz",
+				PartSize: len(prepared.body),
+				MaxParts: 5,
+			})
+		case r.Method == http.MethodPost && r.URL.Path == "/images/upload/part":
+			var req multipartPartRequest
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				t.Fatalf("failed to decode part request: %v", err)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(multipartPartResponse{
+				URL:        server.URL + "/s3/" + strconv.Itoa(req.PartNumber),
+				PartNumber: req.PartNumber,
+			})
+		case r.Method == http.MethodPut && strings.HasPrefix(r.URL.Path, "/s3/"):
+			w.Header().Set("ETag", "\"etag-fallback\"")
+			w.WriteHeader(http.StatusOK)
+		case r.Method == http.MethodPost && r.URL.Path == "/images/upload/complete":
+			if err := json.NewDecoder(r.Body).Decode(&completed); err != nil {
+				t.Fatalf("failed to decode complete request: %v", err)
+			}
+			w.WriteHeader(http.StatusOK)
+		default:
+			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	config.ApiEndpoint = server.URL + "/images"
+	writer, err := NewApi(config)
+	if err != nil {
+		t.Fatalf("NewApi() failed: %v", err)
+	}
+
+	if _, err := writer.Write(testData); err != nil {
+		t.Fatalf("Write() failed: %v", err)
+	}
+
+	if directUploads != 1 {
+		t.Fatalf("direct upload attempts = %d, want 1", directUploads)
+	}
+	if initCalls != 1 {
+		t.Fatalf("multipart init calls = %d, want 1", initCalls)
+	}
+	if completed.ContentEncoding != "gzip" {
+		t.Fatalf("complete request content encoding = %s, want gzip", completed.ContentEncoding)
+	}
+	if len(completed.Parts) != 1 {
+		t.Fatalf("completed parts = %d, want 1", len(completed.Parts))
+	}
+}
+
+func TestNewApi_WriteRequestEntityTooLargeDoesNotFallbackForSmallUpload(t *testing.T) {
+	testData := []byte(`{"test":"data"}`)
+	directUploads := 0
+	initCalls := 0
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodPut && r.URL.Path == "/images":
+			directUploads++
+			w.WriteHeader(http.StatusRequestEntityTooLarge)
+		case r.URL.Path == "/images/upload/init":
+			initCalls++
+			t.Fatalf("multipart init should not be called for small payloads")
+		default:
+			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	writer, err := NewApi(&ApiConfig{
+		ApiKey:       "test-key",
+		ApiSignature: "test-signature",
+		ApiEndpoint:  server.URL + "/images",
+	})
+	if err != nil {
+		t.Fatalf("NewApi() failed: %v", err)
+	}
+
+	_, err = writer.Write(testData)
+	if err == nil {
+		t.Fatal("Write() should fail for small payload 413")
+	}
+	if !strings.Contains(err.Error(), "413 Request Entity Too Large") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+	if directUploads != 1 {
+		t.Fatalf("direct upload attempts = %d, want 1", directUploads)
+	}
+	if initCalls != 0 {
+		t.Fatalf("multipart init calls = %d, want 0", initCalls)
 	}
 }
 
@@ -729,7 +962,6 @@ func TestNewApi_WriteInvalidHTTPHeaders(t *testing.T) {
 		t.Errorf("Error message should contain '%s', got: %v", expectedErrMsg, err)
 	}
 }
-
 // Helper function to generate test data of specific size
 func generateTestDataOfSize(sizeBytes int) []byte {
 	// Create a base object that will be repeated

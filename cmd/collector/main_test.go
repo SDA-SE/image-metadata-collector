@@ -8,6 +8,7 @@ func TestNewCommand_ReturnsCommand(t *testing.T) {
 	cmd := newCommand()
 	if cmd == nil {
 		t.Fatal("expected non-nil command")
+		return
 	}
 	if cmd.Use != AppName {
 		t.Errorf("expected Use=%s, got %s", AppName, cmd.Use)
