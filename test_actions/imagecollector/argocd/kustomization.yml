@@ -4,13 +4,14 @@ kind: Kustomization
 namespace: argocd
 resources:
   - namespace.yml
-  - https://raw.githubusercontent.com/argoproj/argo-cd/v2.1.2/manifests/install.yaml
+  - https://raw.githubusercontent.com/argoproj/argo-cd/v3.3.6/manifests/install.yaml
 
 patches:
   - patch: |-
       - op: add
-        path: "/spec/template/spec/containers/0/command/-"
-        value: "--disable-auth"
+        path: "/spec/template/spec/containers/0/command"
+        value:
+        - --disable-auth
     target:
       kind: Deployment
       name: argocd-server

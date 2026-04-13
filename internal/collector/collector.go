@@ -12,6 +12,8 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+const SchemaVersionV1 = "v1"
+
 type AnnotationNames struct {
 	Base       string
 	Scans      string
@@ -32,10 +34,11 @@ type Notifications struct {
 }
 
 type CollectorImage struct {
-	Namespace string `json:"namespace"`
-	Image     string `json:"image"`
-	ImageId   string `json:"image_id"`
-	ImageType string `json:"image_type"`
+	SchemaVersion string `json:"schema_version"`
+	Namespace     string `json:"namespace"`
+	Image         string `json:"image"`
+	ImageId       string `json:"image_id"`
+	ImageType     string `json:"image_type"`
 
 	// Fields from annotations and labels
 	Environment            string   `json:"environment"`
@@ -154,6 +157,7 @@ func isSkipImageByNamespace(ci *CollectorImage) bool {
 
 // applies replacement and other rules to specific fields
 func cleanCollectorImage(ci *CollectorImage, imageFilter *RunConfig) {
+	ci.SchemaVersion = SchemaVersionV1
 	ci.Image = strings.ReplaceAll(ci.Image, "docker-pullable://", "")
 	ci.ImageId = cleanCollectorImageId(ci)
 
@@ -193,6 +197,8 @@ func Store(images *[]CollectorImage, storage io.Writer, jsonMarshal JsonMarshal)
 		return err
 	}
 
+	ensureSchemaVersion(images)
+
 	data, err := jsonMarshal(images)
 	if err != nil {
 		log.Fatal().Stack().Err(err).Msg("Could not marshal json images")
@@ -204,4 +210,12 @@ func Store(images *[]CollectorImage, storage io.Writer, jsonMarshal JsonMarshal)
 	}
 
 	return nil
+}
+
+func ensureSchemaVersion(images *[]CollectorImage) {
+	for i := range *images {
+		if (*images)[i].SchemaVersion == "" {
+			(*images)[i].SchemaVersion = SchemaVersionV1
+		}
+	}
 }

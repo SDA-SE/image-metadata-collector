@@ -962,6 +962,7 @@ func TestNewApi_WriteInvalidHTTPHeaders(t *testing.T) {
 		t.Errorf("Error message should contain '%s', got: %v", expectedErrMsg, err)
 	}
 }
+
 // Helper function to generate test data of specific size
 func generateTestDataOfSize(sizeBytes int) []byte {
 	// Create a base object that will be repeated

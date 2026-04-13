@@ -52,6 +52,18 @@ During multipart completion, the collector reports the final content encoding as
 Authentication headers such as `x-api-key`, `x-api-signature`, and additional `--http-header` values are sent to the API endpoints.
 They are not added to the direct S3 part uploads because those requests use the presigned URL returned by the API.
 
+## Payload contract
+The uploaded file keeps its existing top-level structure: a JSON array of image metadata objects.
+
+Each image object now includes `schema_version` so consumers can bind to an explicit payload contract without wrapping the array in another object.
+The initial version is `v1`.
+
+The machine-readable contract files are:
+- `schema/image-metadata-collector-report-v1.schema.json`
+- `schema/image-metadata-collector-report.openapi.yaml`
+
+These files describe the same payload for filesystem output, S3 uploads, and API uploads.
+
 ## Test
 ```
 go test ./...

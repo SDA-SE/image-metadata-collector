@@ -1,0 +1,171 @@
+openapi: 3.0.3
+info:
+  title: Image Metadata Collector Upload Contract
+  version: v1
+paths:
+  /v1/account/{accountid}/cluster/{clusterid}/image-collector-report/images:
+    put:
+      summary: Upload image metadata collector report
+      operationId: uploadImageMetadataCollectorReport
+      parameters:
+        - name: accountid
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: clusterid
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ImageMetadataCollectorReport'
+      responses:
+        '200':
+          description: Report accepted
+components:
+  schemas:
+    ImageMetadataCollectorReport:
+      type: array
+      items:
+        $ref: '#/components/schemas/ImageMetadataCollectorReportItem'
+    ImageMetadataCollectorReportItem:
+      type: object
+      additionalProperties: false
+      required:
+        - schema_version
+        - namespace
+        - image
+        - image_id
+        - image_type
+        - environment
+        - product
+        - description
+        - app_kubernetes_io_name
+        - app_kubernetes_io_version
+        - container_type
+        - skip
+        - namespace_filter
+        - namespace_filter_negated
+        - engagement_tags
+        - team
+        - owners
+        - notifications
+        - is_scan_baseimage_lifetime
+        - is_scan_dependency_check
+        - is_scan_dependency_track
+        - is_scan_distroless
+        - is_scan_lifetime
+        - is_scan_malware
+        - is_scan_new_version
+        - is_scan_runasroot
+        - is_scan_potentially_running_as_root
+        - is_scan_run_as_privileged
+        - is_scan_potentially_running_as_privileged
+        - scan_lifetime_max_days
+      properties:
+        schema_version:
+          type: string
+          enum:
+            - v1
+        namespace:
+          type: string
+        image:
+          type: string
+        image_id:
+          type: string
+        image_type:
+          type: string
+        environment:
+          type: string
+        product:
+          type: string
+        description:
+          type: string
+        app_kubernetes_io_name:
+          type: string
+        app_kubernetes_io_version:
+          type: string
+        container_type:
+          type: string
+        skip:
+          type: boolean
+        namespace_filter:
+          type: string
+        namespace_filter_negated:
+          type: string
+        engagement_tags:
+          type: array
+          items:
+            type: string
+        team:
+          type: string
+        owners:
+          type: array
+          items:
+            $ref: '#/components/schemas/Owner'
+        notifications:
+          $ref: '#/components/schemas/Notifications'
+        is_scan_baseimage_lifetime:
+          type: boolean
+        is_scan_dependency_check:
+          type: boolean
+        is_scan_dependency_track:
+          type: boolean
+        is_scan_distroless:
+          type: boolean
+        is_scan_lifetime:
+          type: boolean
+        is_scan_malware:
+          type: boolean
+        is_scan_new_version:
+          type: boolean
+        is_scan_runasroot:
+          type: boolean
+        is_scan_potentially_running_as_root:
+          type: boolean
+        is_scan_run_as_privileged:
+          type: boolean
+        is_scan_potentially_running_as_privileged:
+          type: boolean
+        scan_lifetime_max_days:
+          type: integer
+          format: int64
+    Owner:
+      type: object
+      additionalProperties: false
+      required:
+        - role
+        - uuid
+        - name
+      properties:
+        role:
+          type: string
+        uuid:
+          type: string
+        name:
+          type: string
+    Notifications:
+      type: object
+      additionalProperties: false
+      required:
+        - slack
+        - emails
+        - ms_teams
+      properties:
+        slack:
+          type: array
+          items:
+            type: string
+        emails:
+          type: array
+          items:
+            type: string
+        ms_teams:
+          type: array
+          items:
+            type: string

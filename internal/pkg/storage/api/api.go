@@ -131,7 +131,7 @@ func (api ApiConfig) Write(content []byte) (int, error) {
 
 		return len(content), nil
 	}
-	
+
 	res, err := api.uploadDirect(prepared)
 	if err != nil {
 		log.Error().Msgf("Error sending request: %s", err)
@@ -145,7 +145,7 @@ func (api ApiConfig) Write(content []byte) (int, error) {
 		log.Info().Msgf("Upload Succeeded, Status: %s", res.Status)
 		return len(content), nil
 	}
-	
+
 	if res.StatusCode == http.StatusRequestEntityTooLarge && prepared.requiresCompression {
 		log.Info().Msg("Direct upload returned 413 for large payload, retrying via multipart upload")
 		if err := api.uploadMultipart(prepared); err != nil {
@@ -269,7 +269,7 @@ func (api ApiConfig) uploadMultipart(prepared preparedContent) error {
 		if err != nil {
 			return abortUpload(err)
 		}
-		log.Debug().Msgf("Uploaded part %d, etag %s",partNumber,etag)
+		log.Debug().Msgf("Uploaded part %d, etag %s", partNumber, etag)
 		uploadedParts = append(uploadedParts, multipartUploadPart{
 			PartNumber: partNumber,
 			ETag:       etag,

@@ -3,7 +3,7 @@ set -e
 
 source library.bash
 
-kubectl apply -k argocd
+kubectl apply --server-side -k argocd
 wait_for_pods_ready "argocd" "argocd" 5 10 120
 
 
@@ -72,6 +72,6 @@ done
 filesToCheck="lord-of-the-rings-output.json lord-of-the-rings-service-description.json" # missing-service-description.txt
 for fileToCheck in ${filesToCheck}; do
   ./s3download.bash "${fileToCheck}"
-  #compareDownloadedFileWithExpected "${fileToCheck}" # Disabled due to deacitiviation of labels
+  compareDownloadedFileWithExpected "${fileToCheck}" # Disabled due to de-activiation of labels
   rm ${TMP_FOLDER}/${fileToCheck}
 done

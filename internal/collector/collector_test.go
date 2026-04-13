@@ -4,6 +4,9 @@ import (
 	// "sort"
 	// "strings"
 	"bytes"
+	"encoding/json"
+	"fmt"
+	"os"
 	"reflect"
 	"testing"
 
@@ -969,6 +972,7 @@ func TestConvert(t *testing.T) {
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			results, err := ConvertImages(tc.targetK8Image, tc.defaults, tc.annotationNames, &runConfig)
+			ensureSchemaVersion(tc.expectedCollectorImage)
 
 			assert.NoError(t, err, "Expected no error, got %v", err)
 			assert.Len(t, *results, len(*tc.expectedCollectorImage), "Lengths does not match. Expected %v, got %v,", len(*tc.expectedCollectorImage), len(*results))
@@ -1048,6 +1052,7 @@ func TestStore(t *testing.T) {
 			IsScanMalware:           true,
 		},
 	}
+	ensureSchemaVersion(&fixtures)
 	jsonResult, _ := JsonIndentMarshal(fixtures)
 
 	cases := []struct {
@@ -1090,4 +1095,176 @@ func TestStore(t *testing.T) {
 		})
 	}
 
+}
+
+func TestSchemaContract(t *testing.T) {
+	schemaBytes, err := os.ReadFile("../../schema/image-metadata-collector-report-v1.schema.json")
+	assert.NoError(t, err)
+
+	var schema map[string]any
+	err = json.Unmarshal(schemaBytes, &schema)
+	assert.NoError(t, err)
+
+	payload := []CollectorImage{
+		{
+			SchemaVersion:          SchemaVersionV1,
+			Namespace:              "myNamespace",
+			Image:                  "quay.io/name:tag",
+			ImageId:                "quay.io/name@sha256:1234",
+			ImageType:              kubeclient.ImageTypeCronJob,
+			Environment:            "dev",
+			Product:                "image-metadata-collector",
+			Description:            "test payload",
+			AppKubernetesIoName:    "collector",
+			AppKubernetesIoVersion: "1.0.0",
+			ContainerType:          "application",
+			Skip:                   false,
+			NamespaceFilter:        "",
+			NamespaceFilterNegated: "",
+			EngagementTags:         []string{"defaultTag"},
+			Team:                   "team-a",
+			Owners: []Owner{
+				{Role: "ADMIN", Uuid: "550e8400-e29b-41d4-a716-446655440000", Name: "Alice"},
+			},
+			Notifications: Notifications{
+				Slack:   []string{"channel-a"},
+				Emails:  []string{"team@example.com"},
+				MSTeams: []string{"team-id"},
+			},
+			IsScanBaseimageLifetime:          true,
+			IsScanDependencyCheck:            true,
+			IsScanDependencyTrack:            false,
+			IsScanDistroless:                 true,
+			IsScanLifetime:                   true,
+			IsScanMalware:                    true,
+			IsScanNewVersion:                 true,
+			IsScanRunAsRoot:                  true,
+			IsPotentiallyRunningAsRoot:       false,
+			IsScanRunAsPrivileged:            false,
+			IsPotentiallyRunningAsPrivileged: false,
+			ScanLifetimeMaxDays:              14,
+		},
+	}
+
+	payloadBytes, err := json.Marshal(payload)
+	assert.NoError(t, err)
+
+	var instance any
+	err = json.Unmarshal(payloadBytes, &instance)
+	assert.NoError(t, err)
+
+	assert.NoError(t, validateAgainstSchemaSubset(schema, instance))
+}
+
+func validateAgainstSchemaSubset(schema map[string]any, instance any) error {
+	return validateNode(schema, instance, "$")
+}
+
+func validateNode(schema map[string]any, instance any, path string) error {
+	if schemaType, ok := schema["type"].(string); ok {
+		switch schemaType {
+		case "array":
+			items, ok := instance.([]any)
+			if !ok {
+				return fmt.Errorf("%s: expected array", path)
+			}
+
+			itemSchema, ok := schema["items"].(map[string]any)
+			if !ok {
+				return fmt.Errorf("%s: schema missing items", path)
+			}
+
+			for idx, item := range items {
+				if err := validateNode(itemSchema, item, fmt.Sprintf("%s[%d]", path, idx)); err != nil {
+					return err
+				}
+			}
+
+		case "object":
+			objectValue, ok := instance.(map[string]any)
+			if !ok {
+				return fmt.Errorf("%s: expected object", path)
+			}
+
+			requiredFields := toStringSlice(schema["required"])
+			for _, field := range requiredFields {
+				if _, ok := objectValue[field]; !ok {
+					return fmt.Errorf("%s: missing required field %q", path, field)
+				}
+			}
+
+			properties, _ := schema["properties"].(map[string]any)
+			additionalProperties, hasAdditionalProperties := schema["additionalProperties"].(bool)
+			if hasAdditionalProperties && !additionalProperties {
+				for field := range objectValue {
+					if _, ok := properties[field]; !ok {
+						return fmt.Errorf("%s: unexpected field %q", path, field)
+					}
+				}
+			}
+
+			for fieldName, propertySchema := range properties {
+				fieldValue, ok := objectValue[fieldName]
+				if !ok {
+					continue
+				}
+
+				propertySchemaMap, ok := propertySchema.(map[string]any)
+				if !ok {
+					return fmt.Errorf("%s.%s: invalid property schema", path, fieldName)
+				}
+
+				if err := validateNode(propertySchemaMap, fieldValue, path+"."+fieldName); err != nil {
+					return err
+				}
+			}
+
+		case "string":
+			if _, ok := instance.(string); !ok {
+				return fmt.Errorf("%s: expected string", path)
+			}
+
+		case "boolean":
+			if _, ok := instance.(bool); !ok {
+				return fmt.Errorf("%s: expected boolean", path)
+			}
+
+		case "integer":
+			if _, ok := instance.(float64); !ok {
+				return fmt.Errorf("%s: expected integer", path)
+			}
+		}
+	}
+
+	if enumValues, ok := schema["enum"].([]any); ok {
+		match := false
+		for _, enumValue := range enumValues {
+			if reflect.DeepEqual(enumValue, instance) {
+				match = true
+				break
+			}
+		}
+		if !match {
+			return fmt.Errorf("%s: value %v not part of enum", path, instance)
+		}
+	}
+
+	return nil
+}
+
+func toStringSlice(value any) []string {
+	items, ok := value.([]any)
+	if !ok {
+		return nil
+	}
+
+	result := make([]string, 0, len(items))
+	for _, item := range items {
+		text, ok := item.(string)
+		if ok {
+			result = append(result, text)
+		}
+	}
+
+	return result
 }
