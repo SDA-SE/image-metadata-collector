@@ -33,6 +33,11 @@ type Notifications struct {
 	MSTeams []string `json:"ms_teams"`
 }
 
+type ImageNotificationRule struct {
+	Image         string        `json:"image"`
+	Notifications Notifications `json:"notifications"`
+}
+
 type CollectorImage struct {
 	SchemaVersion string `json:"schema_version"`
 	Namespace     string `json:"namespace"`
@@ -71,12 +76,13 @@ type CollectorImage struct {
 }
 
 type RunConfig struct {
-	ImageFilter     []string
-	NamespaceToTeam []string
+	ImageFilter            []string
+	NamespaceToTeam        []string
+	ImageNotificationRules []ImageNotificationRule
 }
 
 // convertK8ImageToCollectorImage by considering the images labels, annotations and cluster wide defaults
-func convertK8ImageToCollectorImage(k8Image kubeclient.Image, defaults *CollectorImage, annotationNames *AnnotationNames) *CollectorImage {
+func convertK8ImageToCollectorImage(k8Image kubeclient.Image, defaults *CollectorImage, annotationNames *AnnotationNames, runConfig *RunConfig) *CollectorImage {
 	tags := k8Image.Labels
 	if tags == nil {
 		tags = k8Image.Annotations
@@ -119,8 +125,28 @@ func convertK8ImageToCollectorImage(k8Image kubeclient.Image, defaults *Collecto
 		ScanLifetimeMaxDays:              GetOrDefaultInt64(tags, annotationNames.Scans+"scan-lifetime-max-days", defaults.ScanLifetimeMaxDays),
 	}
 
+	applyImageNotificationRules(collectorImage, runConfig)
+
 	return collectorImage
 
+}
+
+func applyImageNotificationRules(ci *CollectorImage, runConfig *RunConfig) {
+	if runConfig == nil {
+		return
+	}
+
+	for _, rule := range runConfig.ImageNotificationRules {
+		matched, err := regexp.MatchString(rule.Image, ci.Image)
+		if err != nil {
+			log.Warn().Err(err).Msgf("Could not match image notification rule %s", rule.Image)
+			continue
+		}
+		if matched {
+			ci.Notifications = rule.Notifications
+			return
+		}
+	}
 }
 
 func isSkipImage(ci *CollectorImage, imageFilter *RunConfig) bool {
@@ -178,7 +204,7 @@ func ConvertImages(k8Images *[]kubeclient.Image, defaults *CollectorImage, annot
 	var images []CollectorImage
 
 	for _, k8Image := range *k8Images {
-		collectorImage := convertK8ImageToCollectorImage(k8Image, defaults, annotationNames)
+		collectorImage := convertK8ImageToCollectorImage(k8Image, defaults, annotationNames, runConfig)
 		cleanCollectorImage(collectorImage, runConfig)
 		images = append(images, *collectorImage)
 

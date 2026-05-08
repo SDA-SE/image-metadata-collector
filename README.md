@@ -12,6 +12,51 @@ The [SECURITY.md](SECURITY.md) includes information on responsible disclosure an
 go run cmd/collector/main.go  --storage fs --environment-name test
 ```
 
+### Example: image-specific notification overrides
+`--image-notification-rules` accepts an ordered JSON array.
+The first matching regex wins and replaces the notifications for that image.
+The effective priority is:
+1. image notification rule
+2. notification values from job, pod, or namespace labels/annotations
+3. configured default notifications
+
+Example:
+```bash
+go run cmd/collector/main.go \
+  --storage fs \
+  --environment-name test \
+  --notifications '{"slack":["#security-default"],"emails":["security-default@example.com"],"ms_teams":["default-security-team"]}' \
+  --image-notification-rules '[
+    {
+      "image": "^ghcr\\.io/acme/payment-service:.*$",
+      "notifications": {
+        "slack": ["#payments-alerts"],
+        "emails": ["payments-oncall@example.com"],
+        "ms_teams": ["payments-security-team"]
+      }
+    },
+    {
+      "image": "^quay\\.io/acme/platform-.+$",
+      "notifications": {
+        "slack": ["#platform-alerts", "#platform-security"],
+        "emails": ["platform-oncall@example.com", "platform-security@example.com"],
+        "ms_teams": ["platform-ops-team"]
+      }
+    },
+    {
+      "image": ".*/redis:7(\\..*)?$",
+      "notifications": {
+        "slack": ["#shared-middleware-alerts"],
+        "emails": ["middleware-oncall@example.com"],
+        "ms_teams": ["middleware-team"]
+      }
+    }
+  ]'
+```
+
+If none of the image regex rules match, the collector uses notification values from job, pod, or namespace labels/annotations.
+If no metadata notifications are configured, the collector falls back to `--notifications`.
+
 ## API upload behavior
 When `--storage api` is used, the collector uploads the generated image report to the configured `--api-endpoint`.
 

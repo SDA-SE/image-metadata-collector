@@ -468,6 +468,7 @@ func TestConvert(t *testing.T) {
 		name                   string
 		defaults               *CollectorImage
 		annotationNames        *AnnotationNames
+		runConfig              *RunConfig
 		targetK8Image          *[]kubeclient.Image
 		expectedCollectorImage *[]CollectorImage
 	}{
@@ -793,7 +794,7 @@ func TestConvert(t *testing.T) {
 			}},
 		},
 		{
-			name:            "NotificationAnnotation",
+			name:            "MergedNotificationAnnotation",
 			defaults:        &CollectorImage{},
 			annotationNames: &annotationNames,
 			targetK8Image: &[]kubeclient.Image{{
@@ -815,6 +816,126 @@ func TestConvert(t *testing.T) {
 					Slack:   []string{"channel1", "channel2"},
 					Emails:  []string{"admin@company.de", "super-admin+devops@company.de"},
 					MSTeams: []string{"1234689745631@teams.microsoft.ms"},
+				},
+			}},
+		},
+		{
+			name:            "CliDefaultNotificationsUsedWhenMetadataMissing",
+			defaults:        &CollectorImage{Notifications: Notifications{Slack: []string{"#default"}}},
+			annotationNames: &annotationNames,
+			targetK8Image: &[]kubeclient.Image{{
+				Image:         "quay.io/name:tag",
+				NamespaceName: "myNamespace",
+			}},
+			expectedCollectorImage: &[]CollectorImage{{
+				Namespace: "myNamespace",
+				Image:     "quay.io/name:tag",
+				ImageId:   "quay.io/name:tag",
+				Notifications: Notifications{
+					Slack: []string{"#default"},
+				},
+			}},
+		},
+		{
+			name:            "ImageNotificationRuleOverridesDefaultNotifications",
+			defaults:        &CollectorImage{Notifications: Notifications{Slack: []string{"#default"}}},
+			annotationNames: &annotationNames,
+			runConfig: &RunConfig{ImageNotificationRules: []ImageNotificationRule{{
+				Image: "^quay\\.io/name:.*$",
+				Notifications: Notifications{
+					Slack: []string{"#rule"},
+				},
+			}}},
+			targetK8Image: &[]kubeclient.Image{{
+				Image:         "quay.io/name:tag",
+				NamespaceName: "myNamespace",
+			}},
+			expectedCollectorImage: &[]CollectorImage{{
+				Namespace: "myNamespace",
+				Image:     "quay.io/name:tag",
+				ImageId:   "quay.io/name:tag",
+				Notifications: Notifications{
+					Slack: []string{"#rule"},
+				},
+			}},
+		},
+		{
+			name:            "ImageNotificationRuleOverridesAnnotationNotifications",
+			defaults:        &CollectorImage{},
+			annotationNames: &annotationNames,
+			runConfig: &RunConfig{ImageNotificationRules: []ImageNotificationRule{{
+				Image: "^quay\\.io/name:.*$",
+				Notifications: Notifications{
+					Emails: []string{"rule@example.com"},
+				},
+			}}},
+			targetK8Image: &[]kubeclient.Image{{
+				Image:         "quay.io/name:tag",
+				NamespaceName: "myNamespace",
+				Annotations: map[string]string{"contact.sda.se/notifications": "{" +
+					"\"slack\":[\"channel1\"]" +
+					"}"},
+			}},
+			expectedCollectorImage: &[]CollectorImage{{
+				Namespace: "myNamespace",
+				Image:     "quay.io/name:tag",
+				ImageId:   "quay.io/name:tag",
+				Notifications: Notifications{
+					Emails: []string{"rule@example.com"},
+				},
+			}},
+		},
+		{
+			name:            "FirstMatchingImageNotificationRuleWins",
+			defaults:        &CollectorImage{},
+			annotationNames: &annotationNames,
+			runConfig: &RunConfig{ImageNotificationRules: []ImageNotificationRule{
+				{
+					Image: "^quay\\.io/name:.*$",
+					Notifications: Notifications{
+						Slack: []string{"#first"},
+					},
+				},
+				{
+					Image: "^quay\\.io/name:tag$",
+					Notifications: Notifications{
+						Slack: []string{"#second"},
+					},
+				},
+			}},
+			targetK8Image: &[]kubeclient.Image{{
+				Image:         "quay.io/name:tag",
+				NamespaceName: "myNamespace",
+			}},
+			expectedCollectorImage: &[]CollectorImage{{
+				Namespace: "myNamespace",
+				Image:     "quay.io/name:tag",
+				ImageId:   "quay.io/name:tag",
+				Notifications: Notifications{
+					Slack: []string{"#first"},
+				},
+			}},
+		},
+		{
+			name:            "NonMatchingImageNotificationRuleKeepsExistingNotifications",
+			defaults:        &CollectorImage{Notifications: Notifications{Slack: []string{"#default"}}},
+			annotationNames: &annotationNames,
+			runConfig: &RunConfig{ImageNotificationRules: []ImageNotificationRule{{
+				Image: "^ghcr\\.io/acme/.*$",
+				Notifications: Notifications{
+					Slack: []string{"#rule"},
+				},
+			}}},
+			targetK8Image: &[]kubeclient.Image{{
+				Image:         "quay.io/name:tag",
+				NamespaceName: "myNamespace",
+			}},
+			expectedCollectorImage: &[]CollectorImage{{
+				Namespace: "myNamespace",
+				Image:     "quay.io/name:tag",
+				ImageId:   "quay.io/name:tag",
+				Notifications: Notifications{
+					Slack: []string{"#default"},
 				},
 			}},
 		},
@@ -966,12 +1087,15 @@ func TestConvert(t *testing.T) {
 			}},
 		},
 	}
-	runConfig := RunConfig{
-		ImageFilter: []string{},
-	}
 	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
-			results, err := ConvertImages(tc.targetK8Image, tc.defaults, tc.annotationNames, &runConfig)
+			runConfig := tc.runConfig
+			if runConfig == nil {
+				runConfig = &RunConfig{
+					ImageFilter: []string{},
+				}
+			}
+			results, err := ConvertImages(tc.targetK8Image, tc.defaults, tc.annotationNames, runConfig)
 			ensureSchemaVersion(tc.expectedCollectorImage)
 
 			assert.NoError(t, err, "Expected no error, got %v", err)

@@ -2,6 +2,8 @@ package collector
 
 import (
 	"encoding/json"
+	"fmt"
+	"regexp"
 	"strconv"
 	"strings"
 
@@ -95,6 +97,20 @@ func GetOrDefaultNotifications(tags map[string]string, key string, defaultValue 
 	}
 
 	return notifications
+}
+
+func ValidateImageNotificationRules(rules []ImageNotificationRule) error {
+	for _, rule := range rules {
+		if rule.Image == "" {
+			return fmt.Errorf("image notification rule image regex must not be empty")
+		}
+
+		if _, err := regexp.Compile(rule.Image); err != nil {
+			return fmt.Errorf("invalid image notification rule regex %q: %w", rule.Image, err)
+		}
+	}
+
+	return nil
 }
 
 type JsonMarshal func(any) ([]byte, error)
