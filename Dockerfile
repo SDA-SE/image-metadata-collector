@@ -1,4 +1,4 @@
-FROM golang:1.26.2 AS build-env
+FROM golang:1.26.3-bookworm AS build-env
 WORKDIR /go/src/app
 
 COPY go.mod go.sum ./

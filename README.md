@@ -12,6 +12,62 @@ The [SECURITY.md](SECURITY.md) includes information on responsible disclosure an
 go run cmd/collector/main.go  --storage fs --environment-name test
 ```
 
+### Example: image-specific notification overrides
+`--image-notification-rules` accepts an ordered JSON array.
+The first matching regex wins.
+If that rule contains a non-empty `notifications` object, it replaces the notifications for that image.
+If that rule contains an empty `notifications` object, the existing notifications stay unchanged and no later rules are applied.
+Prefix a regex with `!` to match all images that do not match the regex.
+This makes the rules behave like an ordered exception list:
+1. put the most specific allow/keep rules first
+2. put broader override rules later
+3. rely on metadata or `--notifications` only when no rule matches, or when a matching rule has `notifications: {}`
+
+Effective notification priority:
+1. first matching image notification rule with a non-empty `notifications` object
+2. notification values from job, pod, or namespace labels/annotations
+3. configured default notifications from `--notifications`
+
+Example:
+```bash
+go run cmd/collector/main.go \
+  --storage fs \
+  --environment-name test \
+  --notifications '{"slack":["#security-default"],"emails":["security-default@example.com"],"ms_teams":["default-security-team"]}' \
+  --image-notification-rules '[
+    {
+      "image": "^quay\\.io/sdase/images.*$",
+      "notifications": {}
+    },
+    {
+      "image": "^quay\\.io/sdase/.*$",
+      "notifications": {
+        "slack": ["#alerts-cis-5xx"],
+        "emails": ["devops+argocd-images@sda-se.com"],
+        "ms_teams": []
+      }
+    },
+    {
+      "image": "!^quay\\.io/sdase/.*$",
+      "notifications": {
+        "slack": ["#alerts-third-party-images"],
+        "emails": ["devops+third-party-images@sda-se.com"],
+        "ms_teams": []
+      }
+    }
+  ]'
+```
+
+With the example above:
+- `quay.io/sdase/images-huhu:1.0.0` matches the first rule, keeps namespace or default notifications unchanged, and stops rule evaluation.
+- `quay.io/sdase/other-app:1.0.0` does not match the first rule, matches the second rule, and gets `#alerts-cis-5xx` plus `devops+argocd-images@sda-se.com`.
+- `docker.io/library/nginx:1.27` matches the third rule and gets the third-party notification targets.
+
+If none of the image regex rules match, the collector uses notification values from job, pod, or namespace labels/annotations.
+If a matching image regex rule has an empty `notifications` object, the collector keeps the current notifications from metadata or defaults.
+If no metadata notifications are configured, the collector falls back to `--notifications`.
+The collector uses Go's RE2 regex engine, so `!regex` is the supported way to express "all except" matching.
+
 ## API upload behavior
 When `--storage api` is used, the collector uploads the generated image report to the configured `--api-endpoint`.
 

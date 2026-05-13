@@ -2,6 +2,8 @@ name: Build and publish Docker image to quay.io
 on:
   push:
     branches:
+      - 'fix/*'
+      - 'feat/*'
       - 'develop'
       - 'main'
 
