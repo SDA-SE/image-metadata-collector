@@ -142,7 +142,7 @@ func newCommand() *cobra.Command {
 	c.PersistentFlags().StringVar(&cfg.Product, "product", "", "Default product to use")
 	c.PersistentFlags().StringVar(&ownersFlag, "owners", "", "List of owners as JSON array e.g. '[{\"role\":\"admin\",\"uuid\":\"1234\",\"name\":\"Alice\"}]'")
 	c.PersistentFlags().StringVar(&notificationsFlag, "notifications", "", "Notification as JSON object array e.g. '{\"slack\":[\"channel1\",\"channel2\"],\"emails\":[\"admin@c.de\",\"super-admin+devops@c.de\"],\"ms_teams\":[\"1234689745631@teams.microsoft.ms\"]}'")
-	c.PersistentFlags().StringVar(&imageNotificationRulesFlag, "image-notification-rules", "", "Ordered image notification rules as JSON array e.g. '[{\"image\":\"^ghcr\\\\.io/acme/private-app:.*$\",\"notifications\":{\"slack\":[\"#team-a\"],\"emails\":[\"team-a@example.com\"],\"ms_teams\":[\"team-a-channel\"]}}]'. Prefix the regex with '!' to match all images that do not match it. First match wins and replaces existing notifications.")
+	c.PersistentFlags().StringVar(&imageNotificationRulesFlag, "image-notification-rules", "", "Ordered image notification rules as JSON array e.g. '[{\"image\":\"^ghcr\\\\.io/acme/private-app:.*$\",\"notifications\":{\"slack\":[\"#team-a\"],\"emails\":[\"team-a@example.com\"],\"ms_teams\":[\"team-a-channel\"]}}]'. Prefix the regex with '!' to match all images that do not match it. First match wins; non-empty notifications replace existing notifications, empty notifications keep existing notifications and stop further rule processing.")
 	c.PersistentFlags().StringVar(&cfg.NamespaceFilter, "namespace-filter", "", "Default namespace filter to use")
 	c.PersistentFlags().StringVar(&cfg.NamespaceFilterNegated, "negated_namespace_filter", "", "Default negated namespace filter to use")
 

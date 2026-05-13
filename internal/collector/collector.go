@@ -33,6 +33,10 @@ type Notifications struct {
 	MSTeams []string `json:"ms_teams"`
 }
 
+func (n Notifications) IsEmpty() bool {
+	return len(n.Slack) == 0 && len(n.Emails) == 0 && len(n.MSTeams) == 0
+}
+
 type ImageNotificationRule struct {
 	Image         string        `json:"image"`
 	Notifications Notifications `json:"notifications"`
@@ -152,7 +156,9 @@ func applyImageNotificationRules(ci *CollectorImage, runConfig *RunConfig) {
 			continue
 		}
 		if matched {
-			ci.Notifications = rule.Notifications
+			if !rule.Notifications.IsEmpty() {
+				ci.Notifications = rule.Notifications
+			}
 			return
 		}
 	}

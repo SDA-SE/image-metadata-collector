@@ -14,12 +14,19 @@ go run cmd/collector/main.go  --storage fs --environment-name test
 
 ### Example: image-specific notification overrides
 `--image-notification-rules` accepts an ordered JSON array.
-The first matching regex wins and replaces the notifications for that image.
+The first matching regex wins.
+If that rule contains a non-empty `notifications` object, it replaces the notifications for that image.
+If that rule contains an empty `notifications` object, the existing notifications stay unchanged and no later rules are applied.
 Prefix a regex with `!` to match all images that do not match the regex.
-The effective priority is:
-1. image notification rule
+This makes the rules behave like an ordered exception list:
+1. put the most specific allow/keep rules first
+2. put broader override rules later
+3. rely on metadata or `--notifications` only when no rule matches, or when a matching rule has `notifications: {}`
+
+Effective notification priority:
+1. first matching image notification rule with a non-empty `notifications` object
 2. notification values from job, pod, or namespace labels/annotations
-3. configured default notifications
+3. configured default notifications from `--notifications`
 
 Example:
 ```bash
@@ -29,41 +36,35 @@ go run cmd/collector/main.go \
   --notifications '{"slack":["#security-default"],"emails":["security-default@example.com"],"ms_teams":["default-security-team"]}' \
   --image-notification-rules '[
     {
-      "image": "^ghcr\\.io/acme/payment-service:.*$",
-      "notifications": {
-        "slack": ["#payments-alerts"],
-        "emails": ["payments-oncall@example.com"],
-        "ms_teams": ["payments-security-team"]
-      }
+      "image": "^quay\\.io/sdase/images.*$",
+      "notifications": {}
     },
     {
-      "image": "^quay\\.io/acme/platform-.+$",
+      "image": "^quay\\.io/sdase/.*$",
       "notifications": {
-        "slack": ["#platform-alerts", "#platform-security"],
-        "emails": ["platform-oncall@example.com", "platform-security@example.com"],
-        "ms_teams": ["platform-ops-team"]
+        "slack": ["#alerts-cis-5xx"],
+        "emails": ["devops+argocd-images@sda-se.com"],
+        "ms_teams": []
       }
     },
     {
       "image": "!^quay\\.io/sdase/.*$",
       "notifications": {
-        "slack": ["#alerts-cis-5xx"],
-        "emails": ["devops+non-quay-images@sda-se.com"],
+        "slack": ["#alerts-third-party-images"],
+        "emails": ["devops+third-party-images@sda-se.com"],
         "ms_teams": []
-      }
-    },
-    {
-      "image": ".*/redis:7(\\..*)?$",
-      "notifications": {
-        "slack": ["#shared-middleware-alerts"],
-        "emails": ["middleware-oncall@example.com"],
-        "ms_teams": ["middleware-team"]
       }
     }
   ]'
 ```
 
+With the example above:
+- `quay.io/sdase/images-huhu:1.0.0` matches the first rule, keeps namespace or default notifications unchanged, and stops rule evaluation.
+- `quay.io/sdase/other-app:1.0.0` does not match the first rule, matches the second rule, and gets `#alerts-cis-5xx` plus `devops+argocd-images@sda-se.com`.
+- `docker.io/library/nginx:1.27` matches the third rule and gets the third-party notification targets.
+
 If none of the image regex rules match, the collector uses notification values from job, pod, or namespace labels/annotations.
+If a matching image regex rule has an empty `notifications` object, the collector keeps the current notifications from metadata or defaults.
 If no metadata notifications are configured, the collector falls back to `--notifications`.
 The collector uses Go's RE2 regex engine, so `!regex` is the supported way to express "all except" matching.
 

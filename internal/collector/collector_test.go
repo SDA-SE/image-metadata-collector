@@ -917,6 +917,67 @@ func TestConvert(t *testing.T) {
 			}},
 		},
 		{
+			name:            "EmptyMatchingImageNotificationRuleKeepsExistingNotificationsAndStopsProcessing",
+			defaults:        &CollectorImage{Notifications: Notifications{Slack: []string{"#default"}}},
+			annotationNames: &annotationNames,
+			runConfig: &RunConfig{ImageNotificationRules: []ImageNotificationRule{
+				{
+					Image:         "^quay\\.io/sdase/images.*$",
+					Notifications: Notifications{},
+				},
+				{
+					Image: "!^quay\\.io/sdase/.*$",
+					Notifications: Notifications{
+						Slack:  []string{"#alerts-cis-5xx"},
+						Emails: []string{"devops+argocd-images@sda-se.com"},
+					},
+				},
+			}},
+			targetK8Image: &[]kubeclient.Image{{
+				Image:         "quay.io/sdase/images-huhu:1.0.0",
+				NamespaceName: "myNamespace",
+			}},
+			expectedCollectorImage: &[]CollectorImage{{
+				Namespace: "myNamespace",
+				Image:     "quay.io/sdase/images-huhu:1.0.0",
+				ImageId:   "quay.io/sdase/images-huhu:1.0.0",
+				Notifications: Notifications{
+					Slack: []string{"#default"},
+				},
+			}},
+		},
+		{
+			name:            "LaterImageNotificationRuleOverridesWhenEarlierEmptyRuleDoesNotMatch",
+			defaults:        &CollectorImage{Notifications: Notifications{Slack: []string{"#default"}}},
+			annotationNames: &annotationNames,
+			runConfig: &RunConfig{ImageNotificationRules: []ImageNotificationRule{
+				{
+					Image:         "^quay\\.io/sdase/images.*$",
+					Notifications: Notifications{},
+				},
+				{
+					Image: "!^quay\\.io/sdase/.*$",
+					Notifications: Notifications{
+						Slack:  []string{"#alerts-cis-5xx"},
+						Emails: []string{"devops+argocd-images@sda-se.com"},
+					},
+				},
+			}},
+			targetK8Image: &[]kubeclient.Image{{
+				Image:         "docker.io/library/nginx:1.27",
+				NamespaceName: "myNamespace",
+			}},
+			expectedCollectorImage: &[]CollectorImage{{
+				Namespace: "myNamespace",
+				Image:     "docker.io/library/nginx:1.27",
+				ImageId:   "docker.io/library/nginx:1.27",
+				Notifications: Notifications{
+					Slack:  []string{"#alerts-cis-5xx"},
+					Emails: []string{"devops+argocd-images@sda-se.com"},
+				},
+			}},
+		},
+		{
 			name:            "NonMatchingImageNotificationRuleKeepsExistingNotifications",
 			defaults:        &CollectorImage{Notifications: Notifications{Slack: []string{"#default"}}},
 			annotationNames: &annotationNames,
