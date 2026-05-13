@@ -99,14 +99,31 @@ func GetOrDefaultNotifications(tags map[string]string, key string, defaultValue 
 	return notifications
 }
 
+func normalizeImageNotificationRulePattern(rule ImageNotificationRule) (string, bool, error) {
+	if rule.Image == "" {
+		return "", false, fmt.Errorf("image notification rule image regex must not be empty")
+	}
+
+	isNegated := strings.HasPrefix(rule.Image, "!")
+	pattern := rule.Image
+	if isNegated {
+		pattern = strings.TrimPrefix(rule.Image, "!")
+		if pattern == "" {
+			return "", false, fmt.Errorf("image notification rule image regex must not be empty")
+		}
+	}
+
+	if _, err := regexp.Compile(pattern); err != nil {
+		return "", false, fmt.Errorf("invalid image notification rule regex %q: %w", rule.Image, err)
+	}
+
+	return pattern, isNegated, nil
+}
+
 func ValidateImageNotificationRules(rules []ImageNotificationRule) error {
 	for _, rule := range rules {
-		if rule.Image == "" {
-			return fmt.Errorf("image notification rule image regex must not be empty")
-		}
-
-		if _, err := regexp.Compile(rule.Image); err != nil {
-			return fmt.Errorf("invalid image notification rule regex %q: %w", rule.Image, err)
+		if _, _, err := normalizeImageNotificationRulePattern(rule); err != nil {
+			return err
 		}
 	}
 

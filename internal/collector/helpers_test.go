@@ -402,6 +402,15 @@ func TestValidateImageNotificationRules(t *testing.T) {
 			}},
 		},
 		{
+			name: "ValidNegatedRule",
+			rules: []ImageNotificationRule{{
+				Image: "!^ghcr\\.io/acme/private-app:.*$",
+				Notifications: Notifications{
+					Slack: []string{"#team-a"},
+				},
+			}},
+		},
+		{
 			name: "EmptyRegex",
 			rules: []ImageNotificationRule{{
 				Image: "",
@@ -409,9 +418,23 @@ func TestValidateImageNotificationRules(t *testing.T) {
 			expectErr: true,
 		},
 		{
+			name: "BareNegationMarker",
+			rules: []ImageNotificationRule{{
+				Image: "!",
+			}},
+			expectErr: true,
+		},
+		{
 			name: "InvalidRegex",
 			rules: []ImageNotificationRule{{
 				Image: "(",
+			}},
+			expectErr: true,
+		},
+		{
+			name: "InvalidNegatedRegex",
+			rules: []ImageNotificationRule{{
+				Image: "!(",
 			}},
 			expectErr: true,
 		},

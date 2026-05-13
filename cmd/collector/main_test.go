@@ -176,6 +176,17 @@ func TestNewCommand_ValidImageNotificationRulesFlag(t *testing.T) {
 	}
 }
 
+func TestNewCommand_ValidNegatedImageNotificationRulesFlag(t *testing.T) {
+	cmd := newCommand()
+	if err := cmd.PersistentFlags().Set("image-notification-rules", `[{"image":"!^ghcr\\.io/acme/private-app:.*$","notifications":{"slack":["#channel"],"emails":["test@example.com"],"ms_teams":["team-a"]}}]`); err != nil {
+		t.Fatalf("failed to set image-notification-rules flag: %v", err)
+	}
+	preRunE := cmd.PersistentPreRunE
+	if err := preRunE(cmd, []string{}); err != nil {
+		t.Errorf("unexpected error with valid negated image-notification-rules flag: %v", err)
+	}
+}
+
 func TestNewCommand_InvalidImageNotificationRulesFlag(t *testing.T) {
 	cmd := newCommand()
 	if err := cmd.PersistentFlags().Set("image-notification-rules", "not-valid-json"); err != nil {
@@ -197,6 +208,18 @@ func TestNewCommand_InvalidImageNotificationRulesRegexFlag(t *testing.T) {
 	preRunE := cmd.PersistentPreRunE
 	if err := preRunE(cmd, []string{}); err == nil {
 		t.Error("expected error for invalid image-notification-rules regex, got nil")
+	}
+}
+
+func TestNewCommand_InvalidNegatedImageNotificationRulesRegexFlag(t *testing.T) {
+	cmd := newCommand()
+	if err := cmd.PersistentFlags().Set("image-notification-rules", `[{"image":"!","notifications":{"slack":["#channel"]}}]`); err != nil {
+		t.Fatalf("failed to set image-notification-rules flag: %v", err)
+	}
+
+	preRunE := cmd.PersistentPreRunE
+	if err := preRunE(cmd, []string{}); err == nil {
+		t.Error("expected error for invalid negated image-notification-rules regex, got nil")
 	}
 }
 

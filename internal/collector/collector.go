@@ -137,7 +137,16 @@ func applyImageNotificationRules(ci *CollectorImage, runConfig *RunConfig) {
 	}
 
 	for _, rule := range runConfig.ImageNotificationRules {
-		matched, err := regexp.MatchString(rule.Image, ci.Image)
+		pattern, isNegated, err := normalizeImageNotificationRulePattern(rule)
+		if err != nil {
+			log.Warn().Err(err).Msgf("Could not match image notification rule %s", rule.Image)
+			continue
+		}
+
+		matched, err := regexp.MatchString(pattern, ci.Image)
+		if isNegated {
+			matched = !matched
+		}
 		if err != nil {
 			log.Warn().Err(err).Msgf("Could not match image notification rule %s", rule.Image)
 			continue

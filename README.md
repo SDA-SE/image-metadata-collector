@@ -15,6 +15,7 @@ go run cmd/collector/main.go  --storage fs --environment-name test
 ### Example: image-specific notification overrides
 `--image-notification-rules` accepts an ordered JSON array.
 The first matching regex wins and replaces the notifications for that image.
+Prefix a regex with `!` to match all images that do not match the regex.
 The effective priority is:
 1. image notification rule
 2. notification values from job, pod, or namespace labels/annotations
@@ -44,6 +45,14 @@ go run cmd/collector/main.go \
       }
     },
     {
+      "image": "!^quay\\.io/sdase/.*$",
+      "notifications": {
+        "slack": ["#alerts-cis-5xx"],
+        "emails": ["devops+non-quay-images@sda-se.com"],
+        "ms_teams": []
+      }
+    },
+    {
       "image": ".*/redis:7(\\..*)?$",
       "notifications": {
         "slack": ["#shared-middleware-alerts"],
@@ -56,6 +65,7 @@ go run cmd/collector/main.go \
 
 If none of the image regex rules match, the collector uses notification values from job, pod, or namespace labels/annotations.
 If no metadata notifications are configured, the collector falls back to `--notifications`.
+The collector uses Go's RE2 regex engine, so `!regex` is the supported way to express "all except" matching.
 
 ## API upload behavior
 When `--storage api` is used, the collector uploads the generated image report to the configured `--api-endpoint`.

@@ -939,6 +939,114 @@ func TestConvert(t *testing.T) {
 				},
 			}},
 		},
+		{
+			name:            "NegatedImageNotificationRuleOverridesDefaultNotifications",
+			defaults:        &CollectorImage{Notifications: Notifications{Slack: []string{"#default"}}},
+			annotationNames: &annotationNames,
+			runConfig: &RunConfig{ImageNotificationRules: []ImageNotificationRule{{
+				Image: "!^quay\\.io/sdase/.*$",
+				Notifications: Notifications{
+					Slack: []string{"#non-quay"},
+				},
+			}}},
+			targetK8Image: &[]kubeclient.Image{{
+				Image:         "public.ecr.aws/aws-controllers-k8s/s3-controller:1.0.28",
+				NamespaceName: "myNamespace",
+			}},
+			expectedCollectorImage: &[]CollectorImage{{
+				Namespace: "myNamespace",
+				Image:     "public.ecr.aws/aws-controllers-k8s/s3-controller:1.0.28",
+				ImageId:   "public.ecr.aws/aws-controllers-k8s/s3-controller:1.0.28",
+				Notifications: Notifications{
+					Slack: []string{"#non-quay"},
+				},
+			}},
+		},
+		{
+			name:            "NegatedImageNotificationRuleDoesNotOverrideExcludedImage",
+			defaults:        &CollectorImage{Notifications: Notifications{Slack: []string{"#default"}}},
+			annotationNames: &annotationNames,
+			runConfig: &RunConfig{ImageNotificationRules: []ImageNotificationRule{{
+				Image: "!^quay\\.io/sdase/.*$",
+				Notifications: Notifications{
+					Slack: []string{"#non-quay"},
+				},
+			}}},
+			targetK8Image: &[]kubeclient.Image{{
+				Image:         "quay.io/sdase/app:1.0.0",
+				NamespaceName: "myNamespace",
+			}},
+			expectedCollectorImage: &[]CollectorImage{{
+				Namespace: "myNamespace",
+				Image:     "quay.io/sdase/app:1.0.0",
+				ImageId:   "quay.io/sdase/app:1.0.0",
+				Notifications: Notifications{
+					Slack: []string{"#default"},
+				},
+			}},
+		},
+		{
+			name:            "PositiveRuleWinsBeforeNegatedRule",
+			defaults:        &CollectorImage{Notifications: Notifications{Slack: []string{"#default"}}},
+			annotationNames: &annotationNames,
+			runConfig: &RunConfig{ImageNotificationRules: []ImageNotificationRule{
+				{
+					Image: "^public\\.ecr\\.aws/.*$",
+					Notifications: Notifications{
+						Slack: []string{"#public-ecr"},
+					},
+				},
+				{
+					Image: "!^quay\\.io/sdase/.*$",
+					Notifications: Notifications{
+						Slack: []string{"#non-quay"},
+					},
+				},
+			}},
+			targetK8Image: &[]kubeclient.Image{{
+				Image:         "public.ecr.aws/aws-controllers-k8s/s3-controller:1.0.28",
+				NamespaceName: "myNamespace",
+			}},
+			expectedCollectorImage: &[]CollectorImage{{
+				Namespace: "myNamespace",
+				Image:     "public.ecr.aws/aws-controllers-k8s/s3-controller:1.0.28",
+				ImageId:   "public.ecr.aws/aws-controllers-k8s/s3-controller:1.0.28",
+				Notifications: Notifications{
+					Slack: []string{"#public-ecr"},
+				},
+			}},
+		},
+		{
+			name:            "NegatedRuleWinsBeforePositiveRule",
+			defaults:        &CollectorImage{Notifications: Notifications{Slack: []string{"#default"}}},
+			annotationNames: &annotationNames,
+			runConfig: &RunConfig{ImageNotificationRules: []ImageNotificationRule{
+				{
+					Image: "!^quay\\.io/sdase/.*$",
+					Notifications: Notifications{
+						Slack: []string{"#non-quay"},
+					},
+				},
+				{
+					Image: "^public\\.ecr\\.aws/.*$",
+					Notifications: Notifications{
+						Slack: []string{"#public-ecr"},
+					},
+				},
+			}},
+			targetK8Image: &[]kubeclient.Image{{
+				Image:         "public.ecr.aws/aws-controllers-k8s/s3-controller:1.0.28",
+				NamespaceName: "myNamespace",
+			}},
+			expectedCollectorImage: &[]CollectorImage{{
+				Namespace: "myNamespace",
+				Image:     "public.ecr.aws/aws-controllers-k8s/s3-controller:1.0.28",
+				ImageId:   "public.ecr.aws/aws-controllers-k8s/s3-controller:1.0.28",
+				Notifications: Notifications{
+					Slack: []string{"#non-quay"},
+				},
+			}},
+		},
 
 		{
 			name:            "OwnerAnnotation",
