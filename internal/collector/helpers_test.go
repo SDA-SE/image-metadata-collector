@@ -386,6 +386,73 @@ func TestGetOrDefaultNotifications_EmptyArrays(t *testing.T) {
 	}
 }
 
+func TestValidateImageNotificationRules(t *testing.T) {
+	testCases := []struct {
+		name      string
+		rules     []ImageNotificationRule
+		expectErr bool
+	}{
+		{
+			name: "ValidRules",
+			rules: []ImageNotificationRule{{
+				Image: "^ghcr\\.io/acme/private-app:.*$",
+				Notifications: Notifications{
+					Slack: []string{"#team-a"},
+				},
+			}},
+		},
+		{
+			name: "ValidNegatedRule",
+			rules: []ImageNotificationRule{{
+				Image: "!^ghcr\\.io/acme/private-app:.*$",
+				Notifications: Notifications{
+					Slack: []string{"#team-a"},
+				},
+			}},
+		},
+		{
+			name: "EmptyRegex",
+			rules: []ImageNotificationRule{{
+				Image: "",
+			}},
+			expectErr: true,
+		},
+		{
+			name: "BareNegationMarker",
+			rules: []ImageNotificationRule{{
+				Image: "!",
+			}},
+			expectErr: true,
+		},
+		{
+			name: "InvalidRegex",
+			rules: []ImageNotificationRule{{
+				Image: "(",
+			}},
+			expectErr: true,
+		},
+		{
+			name: "InvalidNegatedRegex",
+			rules: []ImageNotificationRule{{
+				Image: "!(",
+			}},
+			expectErr: true,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			err := ValidateImageNotificationRules(tc.rules)
+			if tc.expectErr && err == nil {
+				t.Fatal("expected error, got nil")
+			}
+			if !tc.expectErr && err != nil {
+				t.Fatalf("unexpected error: %v", err)
+			}
+		})
+	}
+}
+
 // --- JsonIndentMarshal ---
 func TestJsonIndentMarshal_ValidInput(t *testing.T) {
 	input := []Owner{{Role: "admin", Uuid: "1234", Name: "Alice"}}
