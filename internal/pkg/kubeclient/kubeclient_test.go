@@ -1,1021 +1,633 @@
 package kubeclient
 
 import (
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/base64"
+	"encoding/json"
+	"encoding/pem"
+	"fmt"
+	"math/big"
+	"net"
+	"net/http"
+	"net/http/httptest"
+	"net/url"
+	"os"
+	"path/filepath"
+	"reflect"
 	"sort"
 	"strings"
 	"testing"
-
-	batchv1 "k8s.io/api/batch/v1"
-	corev1 "k8s.io/api/core/v1"
-	metav1 "k8s.io/apimachinery/pkg/apis/meta/v1"
-	"k8s.io/apimachinery/pkg/runtime"
-	testclient "k8s.io/client-go/kubernetes/fake"
+	"time"
 )
 
 func TestGetNamespaces(t *testing.T) {
-	var client Client
+	t.Parallel()
 
-	testCases := []struct {
-		name               string
-		namespaces         []runtime.Object
-		expectedNamespaces map[string]Namespace
-		expectSuccess      bool
-	}{
-		{
-			name:               "NoNamespaces",
-			namespaces:         []runtime.Object{},
-			expectedNamespaces: map[string]Namespace{},
-			expectSuccess:      true,
-		},
-		{
-			name: "ExistingNamespaceWOLablesOrAnnotations",
-			namespaces: []runtime.Object{
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "test_ns_1",
+	client := newTestAPIClient(t, func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path != "/api/v1/namespaces" {
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+		writeJSON(t, w, map[string]any{
+			"items": []map[string]any{
+				{
+					"metadata": map[string]any{
+						"name":        "test-ns-1",
+						"labels":      map[string]string{"label-a": "value-a"},
+						"annotations": map[string]string{"ann-a": "value-a"},
 					},
 				},
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "test_ns_2",
+				{
+					"metadata": map[string]any{
+						"name": "test-ns-2",
 					},
 				},
 			},
-			expectedNamespaces: map[string]Namespace{"test_ns_1": Namespace{Name: "test_ns_1"}, "test_ns_2": Namespace{Name: "test_ns_2"}},
-			expectSuccess:      true,
-		},
-		{
-			name: "ExistingNamespaceWithSingleLable",
-			namespaces: []runtime.Object{
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:   "test_ns_1",
-						Labels: map[string]string{"label_a": "val_a"},
-					},
-				},
-			},
-			expectedNamespaces: map[string]Namespace{"test_ns_1": Namespace{Name: "test_ns_1", Labels: map[string]string{"label_a": "val_a"}}},
-			expectSuccess:      true,
-		},
-		{
-			name: "ExistingNamespaceWithSingleAnnotation",
-			namespaces: []runtime.Object{
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "test_ns_1",
-						Annotations: map[string]string{"ann_a": "val_a"},
-					},
-				},
-			},
-			expectedNamespaces: map[string]Namespace{"test_ns_1": Namespace{Name: "test_ns_1", Annotations: map[string]string{"ann_a": "val_a"}}},
-			expectSuccess:      true,
-		},
-		{
-			name: "ExistingNamespaceWithSingleAnnotationAndLabel",
-			namespaces: []runtime.Object{
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "test_ns_1",
-						Labels:      map[string]string{"label_a": "val_a"},
-						Annotations: map[string]string{"ann_a": "val_a"},
-					},
-				},
-			},
-			expectedNamespaces: map[string]Namespace{
-				"test_ns_1": Namespace{
-					Name:        "test_ns_1",
-					Labels:      map[string]string{"label_a": "val_a"},
-					Annotations: map[string]string{"ann_a": "val_a"},
-				}},
-			expectSuccess: true,
-		},
-		{
-			name: "ExistingNamespacesWithMultipleAnnotationAndLabel",
-			namespaces: []runtime.Object{
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "test_ns_1",
-						Labels:      map[string]string{"label_a": "val_a", "label_b": "val_b"},
-						Annotations: map[string]string{"ann_a": "val_a", "ann_b": "val_b"},
-					},
-				},
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "test_ns_2",
-						Labels:      map[string]string{"label_c": "val_c", "label_d": "val_d"},
-						Annotations: map[string]string{"ann_c": "val_c", "ann_d": "val_d"},
-					},
-				},
-			},
-			expectedNamespaces: map[string]Namespace{
-				"test_ns_1": Namespace{
-					Name:        "test_ns_1",
-					Labels:      map[string]string{"label_a": "val_a", "label_b": "val_b"},
-					Annotations: map[string]string{"ann_a": "val_a", "ann_b": "val_b"},
-				},
-				"test_ns_2": Namespace{
-					Name:        "test_ns_2",
-					Labels:      map[string]string{"label_c": "val_c", "label_d": "val_d"},
-					Annotations: map[string]string{"ann_c": "val_c", "ann_d": "val_d"},
-				},
-			},
-			expectSuccess: true,
-		},
+		})
+	})
+
+	namespaces, err := client.GetNamespaces()
+	if err != nil {
+		t.Fatalf("GetNamespaces returned error: %v", err)
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			client.Clientset = testclient.NewClientset(tc.namespaces...)
-			namespaces, err := client.GetNamespaces()
+	expected := []Namespace{
+		{
+			Name:        "test-ns-1",
+			Labels:      map[string]string{"label-a": "value-a"},
+			Annotations: map[string]string{"ann-a": "value-a"},
+		},
+		{Name: "test-ns-2"},
+	}
 
-			if tc.expectSuccess && err != nil {
-				t.Fatalf("Got an error=%v\n", err)
-			} else if !tc.expectSuccess && err == nil {
-				t.Fatalf("Expected an error but got none\n")
-			} else if len(*namespaces) != len(tc.expectedNamespaces) {
-				t.Fatalf("Expected %d namespaces but got %d\n", len(tc.expectedNamespaces), len(*namespaces))
-			}
+	if !reflect.DeepEqual(expected, *namespaces) {
+		t.Fatalf("unexpected namespaces: %#v", *namespaces)
+	}
+}
 
-			for _, ns := range *namespaces {
-				expectedNs, ok := tc.expectedNamespaces[ns.Name]
+func TestGetNamespacesReturnsAPIError(t *testing.T) {
+	t.Parallel()
 
-				if !ok {
-					t.Fatalf("Expected namespace %s but got none\n", ns.Name)
-				}
+	client := newTestAPIClient(t, func(w http.ResponseWriter, r *http.Request) {
+		http.Error(w, "boom", http.StatusForbidden)
+	})
 
-				for label, value := range expectedNs.Labels {
-					labelValue, ok := ns.Labels[label]
-					if !ok {
-						t.Fatalf("Expected label %s but got none\n", label)
-					} else if labelValue != value {
-						t.Fatalf("Expected label %s with value %s but got %s\n", label, value, labelValue)
-					}
-				}
-
-				for annotation, value := range expectedNs.Annotations {
-					annotationValue, ok := ns.Annotations[annotation]
-					if !ok {
-						t.Fatalf("Expected annotation %s but got none\n", annotation)
-					} else if annotationValue != value {
-						t.Fatalf("Expected annotation %s with value %s but got %s\n", annotation, value, annotationValue)
-					}
-				}
-			}
-
-		})
+	_, err := client.GetNamespaces()
+	if err == nil {
+		t.Fatal("expected error but got nil")
+	}
+	if !strings.Contains(err.Error(), "status 403") {
+		t.Fatalf("expected status in error, got %v", err)
 	}
 }
 
 func TestGetImages(t *testing.T) {
-	var client Client
+	t.Parallel()
 
-	testCases := []struct {
-		name             string
-		pods             []runtime.Object
-		targetNamespaces []Namespace
-		expectedImages   []Image
-		expectSuccess    bool
-	}{
-		{
-			name:             "NoNamespacesNoPods",
-			pods:             []runtime.Object{},
-			targetNamespaces: []Namespace{},
-			expectedImages:   []Image{},
-			expectSuccess:    true,
-		},
-		{
-			name: "ExistingNamespaceAndPodsNoImage",
-			pods: []runtime.Object{
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "test_ns_1",
-						Labels:      map[string]string{"label_a": "val_a"},
-						Annotations: map[string]string{"ann_a": "val_a"},
-					},
-				},
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "test_ns_2",
-						Labels:      map[string]string{"label_c": "val_c", "label_d": "val_d"},
-						Annotations: map[string]string{"ann_c": "val_c", "ann_d": "val_d"},
-					},
-				},
-				&corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "pod1",
-						Namespace: "test_ns_1",
-						Labels: map[string]string{
-							"label1": "value1",
-						},
-					},
-				},
-			},
-			targetNamespaces: []Namespace{
-				Namespace{
-					Name:        "test_ns_1",
-					Labels:      map[string]string{"label_a": "val_a", "label_b": "val_b"},
-					Annotations: map[string]string{"ann_a": "val_a", "ann_b": "val_b"},
-				},
-				Namespace{
-					Name:        "test_ns_2",
-					Labels:      map[string]string{"label_c": "val_c", "label_d": "val_d"},
-					Annotations: map[string]string{"ann_c": "val_c", "ann_d": "val_d"},
-				},
-			},
-			expectedImages: []Image{},
-			expectSuccess:  true,
-		},
-		{
-			name: "ExistingNamespaceAndPodsSingleImage",
-			pods: []runtime.Object{
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "test_ns_1",
-						Labels:      map[string]string{"label_a": "val_a"},
-						Annotations: map[string]string{"ann_a": "val_a"},
-					},
-				},
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "test_ns_2",
-						Labels:      map[string]string{"label_c": "val_c", "label_d": "val_d"},
-						Annotations: map[string]string{"ann_c": "val_c", "ann_d": "val_d"},
-					},
-				},
-				&corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "pod1",
-						Namespace: "test_ns_1",
-						Labels: map[string]string{
-							"pod_label_1": "value_1",
-						},
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							corev1.Container{
-								Name:  "container1",
-								Image: "quay.io/test/test:latest",
-							},
-						},
-					},
-				},
-			},
-			targetNamespaces: []Namespace{
-				Namespace{
-					Name:        "test_ns_1",
-					Labels:      map[string]string{"label_a": "val_a", "label_b": "val_b"},
-					Annotations: map[string]string{"ann_a": "val_a", "ann_b": "val_b"},
-				},
-				Namespace{
-					Name:        "test_ns_2",
-					Labels:      map[string]string{"label_c": "val_c", "label_d": "val_d"},
-					Annotations: map[string]string{"ann_c": "val_c", "ann_d": "val_d"},
-				},
-			},
-			expectedImages: []Image{
-				Image{
-					Image:         "quay.io/test/test:latest",
-					ImageId:       "",
-					NamespaceName: "test_ns_1",
-					Labels:        map[string]string{"pod_label_1": "value_1", "label_a": "val_a"},
-					Annotations:   map[string]string{"ann_a": "val_a"},
-				},
-			},
-			expectSuccess: true,
-		},
-		{
-			name: "TargetLessNamespacesThanImages",
-			pods: []runtime.Object{
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "test_ns_1",
-						Labels:      map[string]string{"label_a": "val_a"},
-						Annotations: map[string]string{"ann_a": "val_a"},
-					},
-				},
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "test_ns_2",
-						Labels:      map[string]string{"label_c": "val_c", "label_d": "val_d"},
-						Annotations: map[string]string{"ann_c": "val_c", "ann_d": "val_d"},
-					},
-				},
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "test_ns_3",
-					},
-				},
-				&corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "pod1",
-						Namespace: "test_ns_1",
-						Labels: map[string]string{
-							"pod_label_1": "value_1",
-						},
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							corev1.Container{
-								Name:  "container1",
-								Image: "quay.io/test/test:latest",
-							},
-						},
-					},
-				},
-				&corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "pod2",
-						Namespace: "test_ns_2",
-						Labels: map[string]string{
-							"pod_label_1": "value_1",
-						},
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							corev1.Container{
-								Name:  "container2",
-								Image: "quay.io/test/test:v2",
-							},
-						},
-					},
-				},
-				&corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "pod3",
-						Namespace: "test_ns_2",
-						Labels: map[string]string{
-							"pod_label_1": "value_1",
-						},
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							corev1.Container{
-								Name:  "container3",
-								Image: "quay.io/test/test:3",
-							},
-						},
-					},
-				},
-			},
-			targetNamespaces: []Namespace{
-				Namespace{
-					Name:        "test_ns_1",
-					Labels:      map[string]string{"label_a": "val_a", "label_b": "val_b"},
-					Annotations: map[string]string{"ann_a": "val_a", "ann_b": "val_b"},
-				},
-			},
-			expectedImages: []Image{
-				Image{
-					Image:         "quay.io/test/test:latest",
-					ImageId:       "",
-					NamespaceName: "test_ns_1",
-					Labels:        map[string]string{"pod_label_1": "value_1", "label_a": "val_a"},
-					Annotations:   map[string]string{"ann_a": "val_a"},
-				},
-			},
-			expectSuccess: true,
-		},
-		{
-			name: "TargetMultipleImagesInSingleNamespace",
-			pods: []runtime.Object{
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "test_ns_1",
-						Labels:      map[string]string{"label_a": "val_a"},
-						Annotations: map[string]string{"ann_a": "val_a"},
-					},
-				},
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "test_ns_2",
-						Labels:      map[string]string{"label_c": "val_c", "label_d": "val_d"},
-						Annotations: map[string]string{"ann_c": "val_c", "ann_d": "val_d"},
-					},
-				},
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "test_ns_3",
-					},
-				},
-				&corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "pod1",
-						Namespace: "test_ns_1",
-						Labels: map[string]string{
-							"pod_label_1": "value_1",
-						},
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							corev1.Container{
-								Name:  "container1",
-								Image: "quay.io/test/test:latest",
-							},
-						},
-					},
-				},
-				&corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "pod2",
-						Namespace: "test_ns_2",
-						Labels: map[string]string{
-							"pod_label_1": "value_1",
-						},
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							corev1.Container{
-								Name:  "container2",
-								Image: "quay.io/test/test:v2",
-							},
-						},
-					},
-				},
-				&corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "pod3",
-						Namespace: "test_ns_2",
-						Labels: map[string]string{
-							"pod_label_1": "value_1",
-						},
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							corev1.Container{
-								Name:  "container3",
-								Image: "quay.io/test/test:v3",
-							},
-						},
-					},
-				},
-			},
-			targetNamespaces: []Namespace{
-				Namespace{
-					Name:        "test_ns_2",
-					Labels:      map[string]string{"label_c": "val_c", "label_d": "val_d"},
-					Annotations: map[string]string{"ann_c": "val_c", "ann_d": "val_d"},
-				},
-			},
-			expectedImages: []Image{
-				Image{
-					Image:         "quay.io/test/test:v2",
-					ImageId:       "",
-					NamespaceName: "test_ns_2",
-					Labels:        map[string]string{"pod_label_1": "value_1", "label_c": "val_c", "label_d": "val_d"},
-					Annotations:   map[string]string{"ann_c": "val_c", "ann_d": "val_d"},
-				},
-				Image{
-					Image:         "quay.io/test/test:v3",
-					ImageId:       "",
-					NamespaceName: "test_ns_2",
-					Labels:        map[string]string{"pod_label_1": "value_1", "label_c": "val_c", "label_d": "val_d"},
-					Annotations:   map[string]string{"ann_c": "val_c", "ann_d": "val_d"},
-				},
-			},
-			expectSuccess: true,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			client.Clientset = testclient.NewClientset(tc.pods...)
-			images, err := client.GetImages(&tc.targetNamespaces)
-
-			sort.Slice(*images, func(i, j int) bool {
-				return strings.ToLower((*images)[i].Image) < strings.ToLower((*images)[j].Image)
-			})
-
-			sort.Slice(tc.expectedImages, func(i, j int) bool {
-				return strings.ToLower(tc.expectedImages[i].Image) < strings.ToLower(tc.expectedImages[j].Image)
-			})
-
-			if tc.expectSuccess && err != nil {
-				t.Fatalf("Got an error=%v\n", err)
-			} else if !tc.expectSuccess && err == nil {
-				t.Fatalf("Expected an error but got none\n")
-			} else if len(*images) != len(tc.expectedImages) {
-				t.Fatalf("Expected %d images but got %d, (images=%v)\n", len(tc.expectedImages), len(*images), *images)
-			}
-
-			for idx, img := range *images {
-				expectedImg := tc.expectedImages[idx]
-
-				if expectedImg.Image != img.Image {
-					t.Fatalf("Expected image %s but got %s\n", expectedImg.Image, img.Image)
-				}
-
-				if expectedImg.ImageId != img.ImageId {
-					t.Fatalf("Expected imageId %s but got %s\n", expectedImg.ImageId, img.ImageId)
-				}
-
-				if expectedImg.NamespaceName != img.NamespaceName {
-					t.Fatalf("Expected namespace %s but got %s\n", expectedImg.NamespaceName, img.NamespaceName)
-				}
-
-				for label, value := range expectedImg.Labels {
-					labelValue, ok := img.Labels[label]
-					if !ok {
-						t.Fatalf("Expected label %s but got none\n", label)
-					} else if labelValue != value {
-						t.Fatalf("Expected label %s with value %s but got %s\n", label, value, labelValue)
-					}
-				}
-
-				for annotation, value := range expectedImg.Annotations {
-					annotationValue, ok := img.Annotations[annotation]
-					if !ok {
-						t.Fatalf("Expected annotation %s but got none\n", annotation)
-					} else if annotationValue != value {
-						t.Fatalf("Expected annotation %s with value %s but got %s\n", annotation, value, annotationValue)
-					}
-				}
-			}
-
-		})
-	}
-}
-
-func TestGetAllImages(t *testing.T) {
-	var client Client
-
-	testCases := []struct {
-		name           string
-		pods           []runtime.Object
-		expectedImages []Image
-		expectSuccess  bool
-	}{
-		{
-			name:           "NoNamespacesNoPods",
-			pods:           []runtime.Object{},
-			expectedImages: []Image{},
-			expectSuccess:  true,
-		},
-		{
-			name: "ExistingNamespaceAndPodsNoImage",
-			pods: []runtime.Object{
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "test_ns_1",
-						Labels:      map[string]string{"label_a": "val_a"},
-						Annotations: map[string]string{"ann_a": "val_a"},
-					},
-				},
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "test_ns_2",
-						Labels:      map[string]string{"label_c": "val_c", "label_d": "val_d"},
-						Annotations: map[string]string{"ann_c": "val_c", "ann_d": "val_d"},
-					},
-				},
-				&corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "pod1",
-						Namespace: "test_ns_1",
-						Labels: map[string]string{
-							"label1": "value1",
-						},
-					},
-				},
-			},
-			expectedImages: []Image{},
-			expectSuccess:  true,
-		},
-		{
-			name: "ExistingNamespaceAndPodsSingleImage",
-			pods: []runtime.Object{
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "test_ns_1",
-						Labels:      map[string]string{"label_a": "val_a"},
-						Annotations: map[string]string{"ann_a": "val_a"},
-					},
-				},
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "test_ns_2",
-						Labels:      map[string]string{"label_c": "val_c", "label_d": "val_d"},
-						Annotations: map[string]string{"ann_c": "val_c", "ann_d": "val_d"},
-					},
-				},
-				&corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "pod1",
-						Namespace: "test_ns_1",
-						Labels: map[string]string{
-							"pod_label_1": "value_1",
-						},
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							corev1.Container{
-								Name:  "container1",
-								Image: "quay.io/test/test:latest",
-							},
-						},
-					},
-				},
-			},
-			expectedImages: []Image{
-				Image{
-					Image:         "quay.io/test/test:latest",
-					ImageId:       "",
-					NamespaceName: "test_ns_1",
-					Labels:        map[string]string{"pod_label_1": "value_1", "label_a": "val_a"},
-					Annotations:   map[string]string{"ann_a": "val_a"},
-				},
-			},
-			expectSuccess: true,
-		},
-		{
-			name: "TargetLessNamespacesThanImages",
-			pods: []runtime.Object{
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "test_ns_1",
-						Labels:      map[string]string{"label_a": "val_a"},
-						Annotations: map[string]string{"ann_a": "val_a"},
-					},
-				},
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "test_ns_2",
-						Labels:      map[string]string{"label_c": "val_c", "label_d": "val_d"},
-						Annotations: map[string]string{"ann_c": "val_c", "ann_d": "val_d"},
-					},
-				},
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "test_ns_3",
-					},
-				},
-				&corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "pod1",
-						Namespace: "test_ns_1",
-						Labels: map[string]string{
-							"pod_label_1": "value_1",
-						},
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							corev1.Container{
-								Name:  "container1",
-								Image: "quay.io/test/test:latest",
-							},
-						},
-					},
-				},
-				&corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "pod2",
-						Namespace: "test_ns_2",
-						Labels: map[string]string{
-							"pod_label_1": "value_1",
-						},
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							corev1.Container{
-								Name:  "container2",
-								Image: "quay.io/test/test:v2",
-							},
-						},
-					},
-				},
-				&corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "pod3",
-						Namespace: "test_ns_2",
-						Labels: map[string]string{
-							"pod_label_1": "value_1",
-						},
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							corev1.Container{
-								Name:  "container3",
-								Image: "quay.io/test/test:3",
-							},
-						},
-					},
-				},
-			},
-			expectedImages: []Image{
-				Image{
-					Image:         "quay.io/test/test:latest",
-					ImageId:       "",
-					NamespaceName: "test_ns_1",
-					Labels:        map[string]string{"pod_label_1": "value_1", "label_a": "val_a"},
-					Annotations:   map[string]string{"ann_a": "val_a"},
-				},
-				Image{
-					Image:         "quay.io/test/test:v2",
-					ImageId:       "",
-					NamespaceName: "test_ns_2",
-					Labels:        map[string]string{"pod_label_1": "value_1", "label_c": "val_c", "label_d": "val_d"},
-					Annotations:   map[string]string{"ann_c": "val_c", "ann_d": "val_d"},
-				},
-				Image{
-					Image:         "quay.io/test/test:3",
-					ImageId:       "",
-					NamespaceName: "test_ns_2",
-					Labels:        map[string]string{"pod_label_1": "value_1", "label_c": "val_c", "label_d": "val_d"},
-					Annotations:   map[string]string{"ann_c": "val_c", "ann_d": "val_d"},
-				}},
-			expectSuccess: true,
-		},
-		{
-			name: "TargetMultipleImagesInSingleNamespace",
-			pods: []runtime.Object{
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "test_ns_1",
-						Labels:      map[string]string{"label_a": "val_a"},
-						Annotations: map[string]string{"ann_a": "val_a"},
-					},
-				},
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:        "test_ns_2",
-						Labels:      map[string]string{"label_c": "val_c", "label_d": "val_d"},
-						Annotations: map[string]string{"ann_c": "val_c", "ann_d": "val_d"},
-					},
-				},
-				&corev1.Namespace{
-					ObjectMeta: metav1.ObjectMeta{
-						Name: "test_ns_3",
-					},
-				},
-				&corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "pod1",
-						Namespace: "test_ns_1",
-						Labels: map[string]string{
-							"pod_label_1": "value_1",
-						},
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							corev1.Container{
-								Name:  "container1",
-								Image: "quay.io/test/test:latest",
-							},
-						},
-					},
-				},
-				&corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "pod2",
-						Namespace: "test_ns_2",
-						Labels: map[string]string{
-							"pod_label_1": "value_1",
-						},
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							corev1.Container{
-								Name:  "container2",
-								Image: "quay.io/test/test:v2",
-							},
-						},
-					},
-				},
-				&corev1.Pod{
-					ObjectMeta: metav1.ObjectMeta{
-						Name:      "pod3",
-						Namespace: "test_ns_2",
-						Labels: map[string]string{
-							"pod_label_1": "value_1",
-						},
-					},
-					Spec: corev1.PodSpec{
-						Containers: []corev1.Container{
-							corev1.Container{
-								Name:  "container3",
-								Image: "quay.io/test/test:v3",
-							},
-						},
-					},
-				},
-			},
-			expectedImages: []Image{
-				Image{
-					Image:         "quay.io/test/test:latest",
-					ImageId:       "",
-					NamespaceName: "test_ns_1",
-					Labels:        map[string]string{"label_a": "val_a", "pod_label_1": "value_1"},
-					Annotations:   map[string]string{"ann_a": "val_a"},
-				},
-				Image{
-					Image:         "quay.io/test/test:v2",
-					ImageId:       "",
-					NamespaceName: "test_ns_2",
-					Labels:        map[string]string{"pod_label_1": "value_1", "label_c": "val_c", "label_d": "val_d"},
-					Annotations:   map[string]string{"ann_c": "val_c", "ann_d": "val_d"},
-				},
-				Image{
-					Image:         "quay.io/test/test:v3",
-					ImageId:       "",
-					NamespaceName: "test_ns_2",
-					Labels:        map[string]string{"pod_label_1": "value_1", "label_c": "val_c", "label_d": "val_d"},
-					Annotations:   map[string]string{"ann_c": "val_c", "ann_d": "val_d"},
-				},
-			},
-			expectSuccess: true,
-		},
-	}
-
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			client.Clientset = testclient.NewClientset(tc.pods...)
-			images, err := client.GetAllImagesForAllNamespaces()
-
-			sort.Slice(*images, func(i, j int) bool {
-				return strings.ToLower((*images)[i].Image) < strings.ToLower((*images)[j].Image)
-			})
-
-			sort.Slice(tc.expectedImages, func(i, j int) bool {
-				return strings.ToLower(tc.expectedImages[i].Image) < strings.ToLower(tc.expectedImages[j].Image)
-			})
-
-			if tc.expectSuccess && err != nil {
-				t.Fatalf("Got an error=%v\n", err)
-			} else if !tc.expectSuccess && err == nil {
-				t.Fatalf("Expected an error but got none\n")
-			} else if len(*images) != len(tc.expectedImages) {
-				t.Fatalf("Expected %d images but got %d, (images=%v)\n", len(tc.expectedImages), len(*images), *images)
-			}
-
-			for idx, img := range *images {
-				expectedImg := tc.expectedImages[idx]
-
-				if expectedImg.Image != img.Image {
-					t.Fatalf("Expected image %s but got %s\n", expectedImg.Image, img.Image)
-				}
-
-				if expectedImg.ImageId != img.ImageId {
-					t.Fatalf("Expected imageId %s but got %s\n", expectedImg.ImageId, img.ImageId)
-				}
-
-				if expectedImg.NamespaceName != img.NamespaceName {
-					t.Fatalf("Expected namespace %s but got %s\n", expectedImg.NamespaceName, img.NamespaceName)
-				}
-
-				for label, value := range expectedImg.Labels {
-					labelValue, ok := img.Labels[label]
-					if !ok {
-						t.Fatalf("Expected label %s but got none\n", label)
-					} else if labelValue != value {
-						t.Fatalf("Expected label %s with value %s but got %s\n", label, value, labelValue)
-					}
-				}
-
-				for annotation, value := range expectedImg.Annotations {
-					annotationValue, ok := img.Annotations[annotation]
-					if !ok {
-						t.Fatalf("Expected annotation %s but got none\n", annotation)
-					} else if annotationValue != value {
-						t.Fatalf("Expected annotation %s with value %s but got %s\n", annotation, value, annotationValue)
-					}
-				}
-			}
-
-		})
-	}
-}
-
-func TestGetImagesSetsImageType(t *testing.T) {
-	var client Client
-
-	namespaceName := "type-test"
-
-	client.Clientset = testclient.NewClientset(
-		&corev1.Namespace{
-			ObjectMeta: metav1.ObjectMeta{
-				Name: namespaceName,
-			},
-		},
-		&corev1.Pod{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "pod-1",
-				Namespace: namespaceName,
-			},
-			Spec: corev1.PodSpec{
-				InitContainers: []corev1.Container{
+	client := newTestAPIClient(t, func(w http.ResponseWriter, r *http.Request) {
+		switch r.URL.Path {
+		case "/api/v1/namespaces/team-a/pods":
+			writeJSON(t, w, map[string]any{
+				"items": []map[string]any{
 					{
-						Name:  "pod-init",
-						Image: "img-pod-init:1",
-					},
-				},
-				Containers: []corev1.Container{
-					{
-						Name:  "pod-main",
-						Image: "img-pod-main:1",
-					},
-				},
-			},
-			Status: corev1.PodStatus{
-				InitContainerStatuses: []corev1.ContainerStatus{
-					{
-						Name:    "pod-init",
-						Image:   "img-pod-init:1",
-						ImageID: "img-pod-init@sha256:1",
-					},
-				},
-				ContainerStatuses: []corev1.ContainerStatus{
-					{
-						Name:    "pod-main",
-						Image:   "img-pod-main:1",
-						ImageID: "img-pod-main@sha256:1",
-					},
-				},
-			},
-		},
-		&batchv1.Job{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "job-1",
-				Namespace: namespaceName,
-			},
-			Spec: batchv1.JobSpec{
-				Template: corev1.PodTemplateSpec{
-					Spec: corev1.PodSpec{
-						InitContainers: []corev1.Container{
-							{
-								Name:  "job-init",
-								Image: "img-job-init:1",
+						"metadata": map[string]any{
+							"name":        "pod-a",
+							"labels":      map[string]string{"workload": "pod"},
+							"annotations": map[string]string{"pod-ann": "1"},
+						},
+						"spec": map[string]any{
+							"containers": []map[string]string{
+								{"name": "main", "image": "registry/app:v1"},
+								{"name": "sidecar", "image": "registry/sidecar:v1"},
+							},
+							"initContainers": []map[string]string{
+								{"name": "init-a", "image": "registry/init:v1"},
 							},
 						},
-						Containers: []corev1.Container{
-							{
-								Name:  "job-main",
-								Image: "img-job-main:1",
+						"status": map[string]any{
+							"containerStatuses": []map[string]string{
+								{"name": "main", "image": "registry/app@sha256:abc", "imageID": "docker-pullable://registry/app@sha256:abc"},
+							},
+							"initContainerStatuses": []map[string]string{
+								{"name": "init-a", "image": "registry/init@sha256:def", "imageID": "docker-pullable://registry/init@sha256:def"},
 							},
 						},
 					},
 				},
-			},
-		},
-		&batchv1.CronJob{
-			ObjectMeta: metav1.ObjectMeta{
-				Name:      "cronjob-1",
-				Namespace: namespaceName,
-			},
-			Spec: batchv1.CronJobSpec{
-				Schedule: "*/5 * * * *",
-				JobTemplate: batchv1.JobTemplateSpec{
-					Spec: batchv1.JobSpec{
-						Template: corev1.PodTemplateSpec{
-							Spec: corev1.PodSpec{
-								InitContainers: []corev1.Container{
-									{
-										Name:  "cron-init",
-										Image: "img-cron-init:1",
+			})
+		case "/apis/batch/v1/namespaces/team-a/jobs":
+			writeJSON(t, w, map[string]any{
+				"items": []map[string]any{
+					{
+						"metadata": map[string]any{
+							"name":   "job-a",
+							"labels": map[string]string{"job-label": "job"},
+						},
+						"spec": map[string]any{
+							"template": map[string]any{
+								"spec": map[string]any{
+									"containers": []map[string]string{
+										{"name": "job-main", "image": "registry/job:v1"},
 									},
-								},
-								Containers: []corev1.Container{
-									{
-										Name:  "cron-main",
-										Image: "img-cron-main:1",
+									"initContainers": []map[string]string{
+										{"name": "job-init", "image": "registry/job-init:v1"},
 									},
 								},
 							},
 						},
 					},
 				},
-			},
-		},
-	)
+			})
+		case "/apis/batch/v1/namespaces/team-a/cronjobs":
+			writeJSON(t, w, map[string]any{
+				"items": []map[string]any{
+					{
+						"metadata": map[string]any{
+							"name":        "cron-a",
+							"annotations": map[string]string{"cron-ann": "cron"},
+						},
+						"spec": map[string]any{
+							"jobTemplate": map[string]any{
+								"spec": map[string]any{
+									"template": map[string]any{
+										"spec": map[string]any{
+											"containers": []map[string]string{
+												{"name": "cron-main", "image": "registry/cron:v1"},
+											},
+											"initContainers": []map[string]string{
+												{"name": "cron-init", "image": "registry/cron-init:v1"},
+											},
+										},
+									},
+								},
+							},
+						},
+					},
+				},
+			})
+		default:
+			t.Fatalf("unexpected path %s", r.URL.Path)
+		}
+	})
 
-	images, err := client.GetImages(&[]Namespace{{Name: namespaceName}})
+	namespaces := []Namespace{
+		{
+			Name:        "team-a",
+			Labels:      map[string]string{"ns-label": "ns", "workload": "namespace"},
+			Annotations: map[string]string{"ns-ann": "ns"},
+		},
+	}
+
+	images, err := client.GetImages(&namespaces)
 	if err != nil {
 		t.Fatalf("GetImages returned error: %v", err)
 	}
 
-	gotTypes := map[string]string{}
-	for _, image := range *images {
-		gotTypes[image.Image] = image.ImageType
+	sortImages(images)
+
+	expected := []Image{
+		{
+			Image:         "registry/app@sha256:abc",
+			ImageId:       "docker-pullable://registry/app@sha256:abc",
+			NamespaceName: "team-a",
+			Labels:        map[string]string{"ns-label": "ns", "workload": "namespace"},
+			Annotations:   map[string]string{"ns-ann": "ns", "pod-ann": "1"},
+			ImageType:     ImageTypeOther,
+		},
+		{
+			Image:         "registry/cron-init:v1",
+			NamespaceName: "team-a",
+			Labels:        map[string]string{"ns-label": "ns", "workload": "namespace"},
+			Annotations:   map[string]string{"cron-ann": "cron", "ns-ann": "ns"},
+			ImageType:     ImageTypeInitContainer,
+		},
+		{
+			Image:         "registry/cron:v1",
+			NamespaceName: "team-a",
+			Labels:        map[string]string{"ns-label": "ns", "workload": "namespace"},
+			Annotations:   map[string]string{"cron-ann": "cron", "ns-ann": "ns"},
+			ImageType:     ImageTypeCronJob,
+		},
+		{
+			Image:         "registry/init@sha256:def",
+			ImageId:       "docker-pullable://registry/init@sha256:def",
+			NamespaceName: "team-a",
+			Labels:        map[string]string{"ns-label": "ns", "workload": "namespace"},
+			Annotations:   map[string]string{"ns-ann": "ns", "pod-ann": "1"},
+			ImageType:     ImageTypeInitContainer,
+		},
+		{
+			Image:         "registry/job-init:v1",
+			NamespaceName: "team-a",
+			Labels:        map[string]string{"job-label": "job", "ns-label": "ns", "workload": "namespace"},
+			Annotations:   map[string]string{"ns-ann": "ns"},
+			ImageType:     ImageTypeInitContainer,
+		},
+		{
+			Image:         "registry/job:v1",
+			NamespaceName: "team-a",
+			Labels:        map[string]string{"job-label": "job", "ns-label": "ns", "workload": "namespace"},
+			Annotations:   map[string]string{"ns-ann": "ns"},
+			ImageType:     ImageTypeJob,
+		},
+		{
+			Image:         "registry/sidecar:v1",
+			NamespaceName: "team-a",
+			Labels:        map[string]string{"ns-label": "ns", "workload": "namespace"},
+			Annotations:   map[string]string{"ns-ann": "ns", "pod-ann": "1"},
+			ImageType:     ImageTypeOther,
+		},
 	}
 
-	expectedTypes := map[string]string{
-		"img-pod-main:1":  ImageTypeOther,
-		"img-pod-init:1":  ImageTypeInitContainer,
-		"img-job-main:1":  ImageTypeJob,
-		"img-job-init:1":  ImageTypeInitContainer,
-		"img-cron-main:1": ImageTypeCronJob,
-		"img-cron-init:1": ImageTypeInitContainer,
-	}
+	sortImages(&expected)
 
-	if len(gotTypes) != len(expectedTypes) {
-		t.Fatalf("Expected %d images but got %d: %+v", len(expectedTypes), len(gotTypes), gotTypes)
+	if !reflect.DeepEqual(expected, *images) {
+		t.Fatalf("unexpected images: %#v", *images)
 	}
+}
 
-	for imageName, expectedType := range expectedTypes {
-		gotType, ok := gotTypes[imageName]
-		if !ok {
-			t.Fatalf("Missing expected image %s", imageName)
+func TestNewClientFromKubeconfigUsesDefaultPathAndContextOverride(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer expected-token" {
+			t.Fatalf("unexpected authorization header %q", got)
 		}
-		if gotType != expectedType {
-			t.Fatalf("Unexpected image type for %s: expected %s, got %s", imageName, expectedType, gotType)
-		}
+		writeJSON(t, w, map[string]any{"items": []any{}})
+	}))
+	defer server.Close()
+
+	tempDir := t.TempDir()
+	kubeconfigPath := filepath.Join(tempDir, "config")
+	if err := os.WriteFile(kubeconfigPath, []byte(fmt.Sprintf(`
+current-context: current
+clusters:
+  - name: target
+    cluster:
+      server: %s
+      insecure-skip-tls-verify: true
+contexts:
+  - name: current
+    context:
+      cluster: target
+      user: ignored
+  - name: override
+    context:
+      cluster: target
+      user: preferred
+users:
+  - name: ignored
+    user:
+      token: ignored-token
+  - name: preferred
+    user:
+      token: expected-token
+`, server.URL)), 0o600); err != nil {
+		t.Fatalf("write kubeconfig: %v", err)
 	}
+
+	originalDefaultPathFunc := defaultKubeconfigPathFunc
+	defaultKubeconfigPathFunc = func() string { return kubeconfigPath }
+	defer func() {
+		defaultKubeconfigPathFunc = originalDefaultPathFunc
+	}()
+
+	client, err := newClientFromConfig(&KubeConfig{Context: "override"})
+	if err != nil {
+		t.Fatalf("newClientFromConfig returned error: %v", err)
+	}
+
+	if _, err := client.GetNamespaces(); err != nil {
+		t.Fatalf("GetNamespaces returned error: %v", err)
+	}
+}
+
+func TestNewClientFromKubeconfigUsesMasterURLAndTokenFile(t *testing.T) {
+	t.Parallel()
+
+	tokenFile := filepath.Join(t.TempDir(), "token")
+	if err := os.WriteFile(tokenFile, []byte("from-token-file\n"), 0o600); err != nil {
+		t.Fatalf("write token file: %v", err)
+	}
+
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer from-token-file" {
+			t.Fatalf("unexpected authorization header %q", got)
+		}
+		writeJSON(t, w, map[string]any{"items": []any{}})
+	}))
+	defer server.Close()
+
+	kubeconfigPath := filepath.Join(t.TempDir(), "config")
+	if err := os.WriteFile(kubeconfigPath, []byte(fmt.Sprintf(`
+current-context: current
+clusters:
+  - name: target
+    cluster:
+      server: https://127.0.0.1:1
+      insecure-skip-tls-verify: true
+contexts:
+  - name: current
+    context:
+      cluster: target
+      user: preferred
+users:
+  - name: preferred
+    user:
+      tokenFile: %s
+`, tokenFile)), 0o600); err != nil {
+		t.Fatalf("write kubeconfig: %v", err)
+	}
+
+	client, err := newClientFromConfig(&KubeConfig{ConfigFile: kubeconfigPath, MasterUrl: server.URL})
+	if err != nil {
+		t.Fatalf("newClientFromConfig returned error: %v", err)
+	}
+
+	if _, err := client.GetNamespaces(); err != nil {
+		t.Fatalf("GetNamespaces returned error: %v", err)
+	}
+}
+
+func TestNewClientFromKubeconfigUsesCAFileDataAndClientCertificate(t *testing.T) {
+	t.Parallel()
+
+	caPEM, serverCertPEM, serverKeyPEM, clientCertPEM, clientKeyPEM := generateTestCertificates(t)
+
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if len(r.TLS.PeerCertificates) == 0 {
+			t.Fatal("expected peer certificate")
+		}
+		writeJSON(t, w, map[string]any{"items": []any{}})
+	}))
+	server.TLS = &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		ClientAuth: tls.RequireAndVerifyClientCert,
+		Certificates: []tls.Certificate{
+			mustTLSCertificate(t, serverCertPEM, serverKeyPEM),
+		},
+		ClientCAs: mustCertPool(t, caPEM),
+	}
+	server.StartTLS()
+	defer server.Close()
+
+	tempDir := t.TempDir()
+	caFile := filepath.Join(tempDir, "ca.pem")
+	if err := os.WriteFile(caFile, caPEM, 0o600); err != nil {
+		t.Fatalf("write ca file: %v", err)
+	}
+
+	kubeconfigPath := filepath.Join(tempDir, "config")
+	if err := os.WriteFile(kubeconfigPath, []byte(fmt.Sprintf(`
+current-context: current
+clusters:
+  - name: file-cluster
+    cluster:
+      server: %s
+      certificate-authority: %s
+  - name: inline-cluster
+    cluster:
+      server: %s
+      certificate-authority-data: %s
+contexts:
+  - name: current
+    context:
+      cluster: inline-cluster
+      user: mtls-user
+users:
+  - name: mtls-user
+    user:
+      client-certificate-data: %s
+      client-key-data: %s
+`, server.URL, caFile, server.URL, base64.StdEncoding.EncodeToString(caPEM), base64.StdEncoding.EncodeToString(clientCertPEM), base64.StdEncoding.EncodeToString(clientKeyPEM))), 0o600); err != nil {
+		t.Fatalf("write kubeconfig: %v", err)
+	}
+
+	client, err := newClientFromConfig(&KubeConfig{ConfigFile: kubeconfigPath})
+	if err != nil {
+		t.Fatalf("newClientFromConfig returned error: %v", err)
+	}
+
+	if _, err := client.GetNamespaces(); err != nil {
+		t.Fatalf("GetNamespaces returned error: %v", err)
+	}
+}
+
+func TestNewClientFromKubeconfigRejectsExecAuth(t *testing.T) {
+	t.Parallel()
+
+	kubeconfigPath := filepath.Join(t.TempDir(), "config")
+	if err := os.WriteFile(kubeconfigPath, []byte(`
+current-context: current
+clusters:
+  - name: target
+    cluster:
+      server: https://example.invalid
+      insecure-skip-tls-verify: true
+contexts:
+  - name: current
+    context:
+      cluster: target
+      user: exec-user
+users:
+  - name: exec-user
+    user:
+      exec:
+        apiVersion: client.authentication.k8s.io/v1
+        command: example
+`), 0o600); err != nil {
+		t.Fatalf("write kubeconfig: %v", err)
+	}
+
+	_, err := newClientFromConfig(&KubeConfig{ConfigFile: kubeconfigPath})
+	if err == nil {
+		t.Fatal("expected error but got nil")
+	}
+	if !strings.Contains(err.Error(), "exec plugins") {
+		t.Fatalf("unexpected error: %v", err)
+	}
+}
+
+func TestNewClientUsesInClusterConfig(t *testing.T) {
+	server := httptest.NewTLSServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if got := r.Header.Get("Authorization"); got != "Bearer in-cluster-token" {
+			t.Fatalf("unexpected authorization header %q", got)
+		}
+		writeJSON(t, w, map[string]any{"items": []any{}})
+	}))
+	defer server.Close()
+
+	serverURL, err := url.Parse(server.URL)
+	if err != nil {
+		t.Fatalf("parse server URL: %v", err)
+	}
+
+	tempDir := t.TempDir()
+	tokenPath := filepath.Join(tempDir, "token")
+	caPath := filepath.Join(tempDir, "ca.crt")
+
+	cert := server.Certificate()
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
+
+	if err := os.WriteFile(tokenPath, []byte("in-cluster-token"), 0o600); err != nil {
+		t.Fatalf("write token: %v", err)
+	}
+	if err := os.WriteFile(caPath, certPEM, 0o600); err != nil {
+		t.Fatalf("write ca: %v", err)
+	}
+
+	originalTokenPath := serviceAccountTokenPath
+	originalCAPath := serviceAccountCAPath
+	originalDefaultPathFunc := defaultKubeconfigPathFunc
+	defaultKubeconfigPathFunc = func() string { return "" }
+	serviceAccountTokenPath = tokenPath
+	serviceAccountCAPath = caPath
+
+	t.Setenv(inClusterHostEnv, serverURL.Hostname())
+	t.Setenv(inClusterPortEnv, serverURL.Port())
+	defer func() {
+		serviceAccountTokenPath = originalTokenPath
+		serviceAccountCAPath = originalCAPath
+		defaultKubeconfigPathFunc = originalDefaultPathFunc
+	}()
+
+	client, err := newClientFromConfig(&KubeConfig{})
+	if err != nil {
+		t.Fatalf("newClientFromConfig returned error: %v", err)
+	}
+
+	if _, err := client.GetNamespaces(); err != nil {
+		t.Fatalf("GetNamespaces returned error: %v", err)
+	}
+}
+
+func newTestAPIClient(t *testing.T, handler http.HandlerFunc) *Client {
+	t.Helper()
+
+	server := httptest.NewServer(handler)
+	t.Cleanup(server.Close)
+
+	return &Client{
+		baseURL:    server.URL,
+		httpClient: server.Client(),
+	}
+}
+
+func writeJSON(t *testing.T, w http.ResponseWriter, payload any) {
+	t.Helper()
+
+	w.Header().Set("Content-Type", "application/json")
+	if err := json.NewEncoder(w).Encode(payload); err != nil {
+		t.Fatalf("encode JSON: %v", err)
+	}
+}
+
+func sortImages(images *[]Image) {
+	sort.Slice(*images, func(i, j int) bool {
+		if (*images)[i].Image == (*images)[j].Image {
+			return (*images)[i].ImageType < (*images)[j].ImageType
+		}
+		return (*images)[i].Image < (*images)[j].Image
+	})
+}
+
+func generateTestCertificates(t *testing.T) ([]byte, []byte, []byte, []byte, []byte) {
+	t.Helper()
+
+	caKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("generate CA key: %v", err)
+	}
+
+	now := time.Now()
+	caTemplate := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			CommonName: "test-ca",
+		},
+		NotBefore:             now.Add(-time.Hour),
+		NotAfter:              now.Add(24 * time.Hour),
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+
+	caDER, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caKey.PublicKey, caKey)
+	if err != nil {
+		t.Fatalf("create CA cert: %v", err)
+	}
+	caPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caDER})
+
+	serverCertPEM, serverKeyPEM := generateSignedCertificate(t, caTemplate, caKey, now, true, []string{"127.0.0.1", "localhost"})
+	clientCertPEM, clientKeyPEM := generateSignedCertificate(t, caTemplate, caKey, now, false, nil)
+
+	return caPEM, serverCertPEM, serverKeyPEM, clientCertPEM, clientKeyPEM
+}
+
+func generateSignedCertificate(t *testing.T, issuer *x509.Certificate, issuerKey *rsa.PrivateKey, now time.Time, isServer bool, hosts []string) ([]byte, []byte) {
+	t.Helper()
+
+	key, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("generate key: %v", err)
+	}
+
+	serialLimit := new(big.Int).Lsh(big.NewInt(1), 128)
+	serialNumber, err := rand.Int(rand.Reader, serialLimit)
+	if err != nil {
+		t.Fatalf("generate serial number: %v", err)
+	}
+
+	template := &x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject: pkix.Name{
+			CommonName: "test-cert",
+		},
+		NotBefore: now.Add(-time.Hour),
+		NotAfter:  now.Add(24 * time.Hour),
+		KeyUsage:  x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+	}
+
+	if isServer {
+		template.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth}
+		template.DNSNames = hosts
+		template.IPAddresses = []net.IP{net.ParseIP("127.0.0.1")}
+	} else {
+		template.ExtKeyUsage = []x509.ExtKeyUsage{x509.ExtKeyUsageClientAuth}
+	}
+
+	der, err := x509.CreateCertificate(rand.Reader, template, issuer, &key.PublicKey, issuerKey)
+	if err != nil {
+		t.Fatalf("create certificate: %v", err)
+	}
+
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der})
+	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
+
+	return certPEM, keyPEM
+}
+
+func mustTLSCertificate(t *testing.T, certPEM, keyPEM []byte) tls.Certificate {
+	t.Helper()
+
+	certificate, err := tls.X509KeyPair(certPEM, keyPEM)
+	if err != nil {
+		t.Fatalf("load TLS certificate: %v", err)
+	}
+
+	return certificate
+}
+
+func mustCertPool(t *testing.T, certPEM []byte) *x509.CertPool {
+	t.Helper()
+
+	pool := x509.NewCertPool()
+	if !pool.AppendCertsFromPEM(certPEM) {
+		t.Fatal("append cert to pool")
+	}
+
+	return pool
 }
