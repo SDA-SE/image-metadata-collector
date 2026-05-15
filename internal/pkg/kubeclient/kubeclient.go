@@ -481,6 +481,7 @@ type tlsMaterial struct {
 	clientCertificatePEM []byte
 	clientKeyPEM         []byte
 	insecureSkipVerify   bool
+	serverName           string
 }
 
 func newHTTPClientFromKubeconfig(baseDir string, cluster kubeconfigCluster, user kubeconfigUser) (*http.Client, string, error) {
@@ -510,7 +511,7 @@ func newHTTPClientFromKubeconfig(baseDir string, cluster kubeconfigCluster, user
 	}
 
 	bearerToken := strings.TrimSpace(user.Token)
-	if bearerToken == "" && user.TokenFile != "" {
+	if user.TokenFile != "" {
 		bearerToken, err = readTrimmedFile(resolvePath(baseDir, user.TokenFile))
 		if err != nil {
 			return nil, "", fmt.Errorf("read tokenFile: %w", err)
@@ -522,6 +523,7 @@ func newHTTPClientFromKubeconfig(baseDir string, cluster kubeconfigCluster, user
 		clientCertificatePEM: clientCertificatePEM,
 		clientKeyPEM:         clientKeyPEM,
 		insecureSkipVerify:   cluster.InsecureSkipTLSVerify,
+		serverName:           cluster.TLSServerName,
 	})
 	if err != nil {
 		return nil, "", err
@@ -542,6 +544,10 @@ func newHTTPClient(material tlsMaterial) (*http.Client, error) {
 			return nil, errors.New("failed to parse CA certificate data")
 		}
 		tlsConfig.RootCAs = rootCAs
+	}
+
+	if material.serverName != "" {
+		tlsConfig.ServerName = material.serverName
 	}
 
 	if len(material.clientCertificatePEM) > 0 || len(material.clientKeyPEM) > 0 {
@@ -612,6 +618,7 @@ type kubeconfigCluster struct {
 	CertificateAuthority     string `yaml:"certificate-authority"`
 	CertificateAuthorityData string `yaml:"certificate-authority-data"`
 	InsecureSkipTLSVerify    bool   `yaml:"insecure-skip-tls-verify"`
+	TLSServerName            string `yaml:"tls-server-name"`
 }
 
 type namedKubeconfigContext struct {

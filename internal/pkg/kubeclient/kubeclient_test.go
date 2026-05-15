@@ -305,7 +305,7 @@ users:
 	}
 }
 
-func TestNewClientFromKubeconfigUsesMasterURLAndTokenFile(t *testing.T) {
+func TestNewClientFromKubeconfigUsesMasterURLAndTokenFileOverInlineToken(t *testing.T) {
 	t.Parallel()
 
 	tokenFile := filepath.Join(t.TempDir(), "token")
@@ -337,6 +337,7 @@ contexts:
 users:
   - name: preferred
     user:
+      token: stale-inline-token
       tokenFile: %s
 `, tokenFile)), 0o600); err != nil {
 		t.Fatalf("write kubeconfig: %v", err)
@@ -407,6 +408,61 @@ users:
 	}
 
 	client, err := newClientFromConfig(&KubeConfig{ConfigFile: kubeconfigPath})
+	if err != nil {
+		t.Fatalf("newClientFromConfig returned error: %v", err)
+	}
+
+	if _, err := client.GetNamespaces(); err != nil {
+		t.Fatalf("GetNamespaces returned error: %v", err)
+	}
+}
+
+func TestNewClientFromKubeconfigUsesTLSServerName(t *testing.T) {
+	t.Parallel()
+
+	caPEM, serverCertPEM, serverKeyPEM := generateHostnameOnlyServerCertificate(t, "kubernetes.default.svc")
+
+	server := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		writeJSON(t, w, map[string]any{"items": []any{}})
+	}))
+	server.TLS = &tls.Config{
+		MinVersion: tls.VersionTLS12,
+		Certificates: []tls.Certificate{
+			mustTLSCertificate(t, serverCertPEM, serverKeyPEM),
+		},
+	}
+	server.StartTLS()
+	defer server.Close()
+
+	tempDir := t.TempDir()
+	caFile := filepath.Join(tempDir, "ca.pem")
+	if err := os.WriteFile(caFile, caPEM, 0o600); err != nil {
+		t.Fatalf("write ca file: %v", err)
+	}
+
+	kubeconfigPath := filepath.Join(tempDir, "config")
+	if err := os.WriteFile(kubeconfigPath, []byte(fmt.Sprintf(`
+current-context: current
+clusters:
+  - name: target
+    cluster:
+      server: https://127.0.0.1:1
+      certificate-authority: %s
+      tls-server-name: kubernetes.default.svc
+contexts:
+  - name: current
+    context:
+      cluster: target
+      user: preferred
+users:
+  - name: preferred
+    user:
+      token: expected-token
+`, caFile)), 0o600); err != nil {
+		t.Fatalf("write kubeconfig: %v", err)
+	}
+
+	client, err := newClientFromConfig(&KubeConfig{ConfigFile: kubeconfigPath, MasterUrl: server.URL})
 	if err != nil {
 		t.Fatalf("newClientFromConfig returned error: %v", err)
 	}
@@ -608,6 +664,61 @@ func generateSignedCertificate(t *testing.T, issuer *x509.Certificate, issuerKey
 	keyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)})
 
 	return certPEM, keyPEM
+}
+
+func generateHostnameOnlyServerCertificate(t *testing.T, host string) ([]byte, []byte, []byte) {
+	t.Helper()
+
+	caKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("generate CA key: %v", err)
+	}
+
+	now := time.Now()
+	caTemplate := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject: pkix.Name{
+			CommonName: "test-ca",
+		},
+		NotBefore:             now.Add(-time.Hour),
+		NotAfter:              now.Add(24 * time.Hour),
+		KeyUsage:              x509.KeyUsageCertSign | x509.KeyUsageCRLSign,
+		BasicConstraintsValid: true,
+		IsCA:                  true,
+	}
+
+	caDER, err := x509.CreateCertificate(rand.Reader, caTemplate, caTemplate, &caKey.PublicKey, caKey)
+	if err != nil {
+		t.Fatalf("create CA cert: %v", err)
+	}
+	caPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: caDER})
+
+	serverKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	if err != nil {
+		t.Fatalf("generate server key: %v", err)
+	}
+
+	serverTemplate := &x509.Certificate{
+		SerialNumber: big.NewInt(2),
+		Subject: pkix.Name{
+			CommonName: "test-server",
+		},
+		NotBefore:   now.Add(-time.Hour),
+		NotAfter:    now.Add(24 * time.Hour),
+		KeyUsage:    x509.KeyUsageDigitalSignature | x509.KeyUsageKeyEncipherment,
+		ExtKeyUsage: []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
+		DNSNames:    []string{host},
+	}
+
+	serverDER, err := x509.CreateCertificate(rand.Reader, serverTemplate, caTemplate, &serverKey.PublicKey, caKey)
+	if err != nil {
+		t.Fatalf("create server cert: %v", err)
+	}
+
+	serverCertPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: serverDER})
+	serverKeyPEM := pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(serverKey)})
+
+	return caPEM, serverCertPEM, serverKeyPEM
 }
 
 func mustTLSCertificate(t *testing.T, certPEM, keyPEM []byte) tls.Certificate {
