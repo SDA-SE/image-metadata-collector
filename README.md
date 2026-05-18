@@ -12,6 +12,40 @@ The [SECURITY.md](SECURITY.md) includes information on responsible disclosure an
 go run cmd/collector/main.go  --storage fs --environment-name test
 ```
 
+The collector keeps the existing Kubernetes flags:
+- `--kube-config`
+- `--kube-context`
+- `--master-url`
+
+Supported Kubernetes access modes are:
+- in-cluster service account authentication
+- kubeconfig with `token` or `tokenFile`
+- kubeconfig with `client-certificate` and `client-key`
+- CA data from `certificate-authority` or `certificate-authority-data`
+- `insecure-skip-tls-verify` when it is present in kubeconfig
+
+Unsupported kubeconfig authentication modes return explicit errors:
+- `exec` plugins
+- `auth-provider` plugins
+- username/password basic auth
+
+Examples:
+```bash
+go run cmd/collector/main.go \
+  --storage fs \
+  --environment-name test \
+  --kube-config "$HOME/.kube/config" \
+  --kube-context my-context
+```
+
+```bash
+go run cmd/collector/main.go \
+  --storage fs \
+  --environment-name test \
+  --kube-config /path/to/kubeconfig \
+  --master-url https://example-cluster-api.internal
+```
+
 ### Example: image-specific notification overrides
 `--image-notification-rules` accepts an ordered JSON array.
 The first matching regex wins.
