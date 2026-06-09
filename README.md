@@ -104,9 +104,15 @@ The collector uses Go's RE2 regex engine, so `!regex` is the supported way to ex
 
 ## API upload behavior
 When `--storage api` is used, the collector uploads the generated image report to the configured `--api-endpoint`.
+`--filename` does not affect API uploads; it still only applies to `fs`, `s3`, and `git` storage.
+When `--project` is omitted, the collector uploads to `images`.
+When `--project <name>` is set, the collector uploads to `images_<name>`.
 
 The collector currently supports the API endpoint shape:
 `https://<host>/v1/account/<accountid>/cluster/<clusterid>/image-collector-report/images`
+
+The configured `--api-endpoint` must always be that base `.../images` endpoint.
+If `--project` is set, the collector derives the project-specific upload target internally and uses `.../images_<project>` for both direct and multipart uploads.
 
 The multipart endpoints are derived from that URL:
 - `POST .../images/upload/init`
@@ -114,6 +120,13 @@ The multipart endpoints are derived from that URL:
 - direct `PUT` to the presigned S3 URL returned by `upload/part`
 - `POST .../images/upload/complete`
 - `DELETE .../images/upload` when an initialized multipart upload must be aborted
+
+With `--project payments`, the corresponding project-specific endpoints become:
+- `PUT .../images_payments`
+- `POST .../images_payments/upload/init`
+- `POST .../images_payments/upload/part`
+- `POST .../images_payments/upload/complete`
+- `DELETE .../images_payments/upload`
 
 Upload behavior depends on the final payload size:
 
@@ -141,6 +154,24 @@ During multipart completion, the collector reports the final content encoding as
 
 Authentication headers such as `x-api-key`, `x-api-signature`, and additional `--http-header` values are sent to the API endpoints.
 They are not added to the direct S3 part uploads because those requests use the presigned URL returned by the API.
+
+Examples:
+```bash
+go run cmd/collector/main.go \
+  --storage api \
+  --api-key "$API_KEY" \
+  --api-signature "$API_SIGNATURE" \
+  --api-endpoint "https://example.io/v1/account/$ACCOUNT/cluster/$CLUSTER/image-collector-report/images"
+```
+
+```bash
+go run cmd/collector/main.go \
+  --storage api \
+  --project payments \
+  --api-key "$API_KEY" \
+  --api-signature "$API_SIGNATURE" \
+  --api-endpoint "https://example.io/v1/account/$ACCOUNT/cluster/$CLUSTER/image-collector-report/images"
+```
 
 ## Payload contract
 The uploaded file keeps its existing top-level structure: a JSON array of image metadata objects.

@@ -110,6 +110,7 @@ func newCommand() *cobra.Command {
 	c.PersistentFlags().StringVar(&cfg.ApiKey, "api-key", "", "API Key")
 	c.PersistentFlags().StringVar(&cfg.ApiSignature, "api-signature", "", "API Signature")
 	c.PersistentFlags().StringVar(&cfg.ApiEndpoint, "api-endpoint", "", "API Endpoint, e.g. https://example.io/v1/account/$ACCOUNT/cluster/$CLUSTER/image-collector-report/images")
+	c.PersistentFlags().StringVar(&cfg.Project, "project", "", "Optional project suffix for API uploads. When set with --storage api, uploads target 'images_<project>' instead of 'images'")
 	// HTTP Headers
 	// use like: --http-header "Authorization:Bearer token" --http-header "Content-Type:application/json"
 	if pflag.Lookup("http-header") == nil {

@@ -272,7 +272,7 @@ func TestNewApi(t *testing.T) {
 			config: &ApiConfig{
 				ApiKey:       "test-api-key",
 				ApiSignature: "test-signature",
-				ApiEndpoint:  "https://api.example.com/upload",
+				ApiEndpoint:  "https://api.example.com/images",
 				HTTPHeaders:  []string{"X-Custom-Header:value1", "Authorization:Bearer token"},
 			},
 			wantErr: false,
@@ -282,7 +282,17 @@ func TestNewApi(t *testing.T) {
 			config: &ApiConfig{
 				ApiKey:       "test-key",
 				ApiSignature: "test-sig",
-				ApiEndpoint:  "https://api.test.com",
+				ApiEndpoint:  "https://api.test.com/images",
+			},
+			wantErr: false,
+		},
+		{
+			name: "valid config with project suffix",
+			config: &ApiConfig{
+				ApiKey:       "test-key",
+				ApiSignature: "test-sig",
+				ApiEndpoint:  "https://api.test.com/images",
+				Project:      "payments",
 			},
 			wantErr: false,
 		},
@@ -290,7 +300,7 @@ func TestNewApi(t *testing.T) {
 			name: "missing API key",
 			config: &ApiConfig{
 				ApiSignature: "test-signature",
-				ApiEndpoint:  "https://api.example.com",
+				ApiEndpoint:  "https://api.example.com/images",
 			},
 			wantErr: true,
 			errMsg:  "missing Api Key",
@@ -300,7 +310,7 @@ func TestNewApi(t *testing.T) {
 			config: &ApiConfig{
 				ApiKey:       "",
 				ApiSignature: "test-signature",
-				ApiEndpoint:  "https://api.example.com",
+				ApiEndpoint:  "https://api.example.com/images",
 			},
 			wantErr: true,
 			errMsg:  "missing Api Key",
@@ -309,7 +319,7 @@ func TestNewApi(t *testing.T) {
 			name: "missing API signature",
 			config: &ApiConfig{
 				ApiKey:      "test-key",
-				ApiEndpoint: "https://api.example.com",
+				ApiEndpoint: "https://api.example.com/images",
 			},
 			wantErr: true,
 			errMsg:  "missing Api Signature",
@@ -319,7 +329,7 @@ func TestNewApi(t *testing.T) {
 			config: &ApiConfig{
 				ApiKey:       "test-key",
 				ApiSignature: "",
-				ApiEndpoint:  "https://api.example.com",
+				ApiEndpoint:  "https://api.example.com/images",
 			},
 			wantErr: true,
 			errMsg:  "missing Api Signature",
@@ -342,6 +352,16 @@ func TestNewApi(t *testing.T) {
 			},
 			wantErr: true,
 			errMsg:  "missing Api Endpoint",
+		},
+		{
+			name: "invalid API endpoint shape",
+			config: &ApiConfig{
+				ApiKey:       "test-key",
+				ApiSignature: "test-signature",
+				ApiEndpoint:  "https://api.example.com/upload",
+			},
+			wantErr: true,
+			errMsg:  "api endpoint must end with /images",
 		},
 		{
 			name:    "nil config",
@@ -407,6 +427,9 @@ func TestNewApi(t *testing.T) {
 			if apiConfig.ApiEndpoint != tt.config.ApiEndpoint {
 				t.Errorf("NewApi() ApiEndpoint = %v, want %v", apiConfig.ApiEndpoint, tt.config.ApiEndpoint)
 			}
+			if apiConfig.Project != tt.config.Project {
+				t.Errorf("NewApi() Project = %v, want %v", apiConfig.Project, tt.config.Project)
+			}
 
 			// Check HTTPHeaders slice
 			if len(apiConfig.HTTPHeaders) != len(tt.config.HTTPHeaders) {
@@ -428,7 +451,7 @@ func TestNewApi_ReturnsIOWriter(t *testing.T) {
 	config := &ApiConfig{
 		ApiKey:       "test-key",
 		ApiSignature: "test-signature",
-		ApiEndpoint:  "https://api.example.com",
+		ApiEndpoint:  "https://api.example.com/images",
 	}
 
 	writer, err := NewApi(config)
@@ -450,7 +473,7 @@ func TestNewApi_ConfigIsolation(t *testing.T) {
 	originalConfig := &ApiConfig{
 		ApiKey:       "original-key",
 		ApiSignature: "original-signature",
-		ApiEndpoint:  "https://original.example.com",
+		ApiEndpoint:  "https://original.example.com/images",
 		HTTPHeaders:  []string{"Original-Header:value"},
 	}
 
@@ -481,6 +504,8 @@ func TestNewApi_WriteWithCompression(t *testing.T) {
 	tests := []struct {
 		name              string
 		dataSize          int
+		project           string
+		expectedPath      string
 		expectCompression bool
 		expectSuccess     bool
 		serverStatusCode  int
@@ -489,6 +514,7 @@ func TestNewApi_WriteWithCompression(t *testing.T) {
 		{
 			name:              "small data - no compression",
 			dataSize:          1024, // 1KB
+			expectedPath:      "/images",
 			expectCompression: false,
 			expectSuccess:     true,
 			serverStatusCode:  200,
@@ -497,6 +523,7 @@ func TestNewApi_WriteWithCompression(t *testing.T) {
 		{
 			name:              "medium data - no compression",
 			dataSize:          3 * 1024 * 1024, // 3MB
+			expectedPath:      "/images",
 			expectCompression: false,
 			expectSuccess:     true,
 			serverStatusCode:  200,
@@ -505,14 +532,26 @@ func TestNewApi_WriteWithCompression(t *testing.T) {
 		{
 			name:              "large data - with compression",
 			dataSize:          7 * 1024 * 1024, // 7MB
+			expectedPath:      "/images",
 			expectCompression: true,
 			expectSuccess:     true,
 			serverStatusCode:  200,
 			description:       "Large data over 6MB should be compressed",
 		},
 		{
+			name:              "project upload uses project specific direct endpoint",
+			dataSize:          1024,
+			project:           "payments",
+			expectedPath:      "/images_payments",
+			expectCompression: false,
+			expectSuccess:     true,
+			serverStatusCode:  200,
+			description:       "Project upload should target images_<project>",
+		},
+		{
 			name:              "very large data - with compression",
 			dataSize:          10 * 1024 * 1024, // 10MB
+			expectedPath:      "/images",
 			expectCompression: true,
 			expectSuccess:     true,
 			serverStatusCode:  200,
@@ -521,6 +560,7 @@ func TestNewApi_WriteWithCompression(t *testing.T) {
 		{
 			name:              "server error response",
 			dataSize:          1024,
+			expectedPath:      "/images",
 			expectCompression: false,
 			expectSuccess:     false,
 			serverStatusCode:  500,
@@ -529,6 +569,7 @@ func TestNewApi_WriteWithCompression(t *testing.T) {
 		{
 			name:              "large data with server error",
 			dataSize:          70 * 1024 * 1024,
+			expectedPath:      "/images",
 			expectCompression: true,
 			expectSuccess:     false,
 			serverStatusCode:  400,
@@ -560,6 +601,9 @@ func TestNewApi_WriteWithCompression(t *testing.T) {
 				if r.Method != http.MethodPut {
 					t.Errorf("Expected PUT request, got %s", r.Method)
 				}
+				if r.URL.Path != tt.expectedPath {
+					t.Errorf("Expected request path %s, got %s", tt.expectedPath, r.URL.Path)
+				}
 
 				// Return configured status code
 				w.WriteHeader(tt.serverStatusCode)
@@ -570,7 +614,8 @@ func TestNewApi_WriteWithCompression(t *testing.T) {
 			config := &ApiConfig{
 				ApiKey:       "test-api-key",
 				ApiSignature: "test-signature",
-				ApiEndpoint:  server.URL,
+				ApiEndpoint:  server.URL + "/images",
+				Project:      tt.project,
 				HTTPHeaders:  []string{"X-Custom-Header:test-value"},
 			}
 
@@ -664,31 +709,19 @@ func TestNewApi_WriteWithCompression(t *testing.T) {
 	}
 }
 
-func TestNewApi_WriteDataTooLargeEvenAfterCompression(t *testing.T) {
-	config := &ApiConfig{
+func TestNewApi_InvalidBaseEndpointFails(t *testing.T) {
+	_, err := NewApi(&ApiConfig{
 		ApiKey:       "test-key",
 		ApiSignature: "test-signature",
 		ApiEndpoint:  "https://api.example.com/upload",
-	}
-
-	writer, err := NewApi(config)
-	if err != nil {
-		t.Fatalf("NewApi() failed: %v", err)
-	}
-
-	// Generate data that won't compress well (random-ish data)
-	// This simulates data that even after compression is still > 6MB
-	incompressibleData := generateIncompressibleData(9 * 1024 * 1024)
-
-	_, err = writer.Write(incompressibleData)
+	})
 	if err == nil {
-		t.Error("Write() should fail when multipart endpoints cannot be derived")
-		return
+		t.Fatal("NewApi() should reject endpoints that do not end with /images")
 	}
 
-	expectedErrMsg := "must end with /images"
+	expectedErrMsg := "api endpoint must end with /images"
 	if !strings.Contains(err.Error(), expectedErrMsg) {
-		t.Errorf("Error message should contain '%s', got: %v", expectedErrMsg, err)
+		t.Errorf("error should contain %q, got %v", expectedErrMsg, err)
 	}
 }
 
@@ -800,6 +833,94 @@ func TestNewApi_WriteMultipartUpload(t *testing.T) {
 		if headers.Get("x-api-key") != "" {
 			t.Fatal("s3 upload request should not include api auth headers")
 		}
+	}
+}
+
+func TestNewApi_WriteMultipartUploadWithProject(t *testing.T) {
+	testData := generateIncompressibleData(9 * 1024 * 1024)
+	config := &ApiConfig{
+		ApiKey:       "test-key",
+		ApiSignature: "test-signature",
+		Project:      "payments",
+	}
+
+	prepared, err := config.prepareContent(testData)
+	if err != nil {
+		t.Fatalf("prepareContent() failed: %v", err)
+	}
+	if !prepared.requiresMultipart {
+		t.Fatal("expected multipart upload to be required")
+	}
+
+	seenPaths := make([]string, 0, 4)
+
+	var server *httptest.Server
+	server = httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		seenPaths = append(seenPaths, r.URL.Path)
+
+		switch {
+		case r.Method == http.MethodPost && r.URL.Path == "/images_payments/upload/init":
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(multipartInitResponse{
+				UploadID: "upload-project",
+				Key:      "reports/object.json.gz",
+				PartSize: 1024 * 1024,
+				MaxParts: 20,
+			})
+		case r.Method == http.MethodPost && r.URL.Path == "/images_payments/upload/part":
+			var req multipartPartRequest
+			if err := json.NewDecoder(r.Body).Decode(&req); err != nil {
+				t.Fatalf("failed to decode part request: %v", err)
+			}
+			w.Header().Set("Content-Type", "application/json")
+			_ = json.NewEncoder(w).Encode(multipartPartResponse{
+				URL:        server.URL + "/s3/" + strconv.Itoa(req.PartNumber),
+				PartNumber: req.PartNumber,
+			})
+		case r.Method == http.MethodPut && strings.HasPrefix(r.URL.Path, "/s3/"):
+			w.Header().Set("ETag", "\"etag-project\"")
+			w.WriteHeader(http.StatusOK)
+		case r.Method == http.MethodPost && r.URL.Path == "/images_payments/upload/complete":
+			w.WriteHeader(http.StatusOK)
+		default:
+			t.Fatalf("unexpected request: %s %s", r.Method, r.URL.Path)
+		}
+	}))
+	defer server.Close()
+
+	config.ApiEndpoint = server.URL + "/images"
+	writer, err := NewApi(config)
+	if err != nil {
+		t.Fatalf("NewApi() failed: %v", err)
+	}
+
+	if _, err := writer.Write(testData); err != nil {
+		t.Fatalf("Write() failed: %v", err)
+	}
+
+	filteredPaths := make([]string, 0, len(seenPaths))
+	for _, path := range seenPaths {
+		if strings.HasPrefix(path, "/s3/") {
+			continue
+		}
+		filteredPaths = append(filteredPaths, path)
+	}
+
+	expectedPartRequests := (len(prepared.body) + 1024*1024 - 1) / (1024 * 1024)
+	expectedRequestCount := expectedPartRequests + 2
+	if len(filteredPaths) != expectedRequestCount {
+		t.Fatalf("non-s3 request count = %d, want %d", len(filteredPaths), expectedRequestCount)
+	}
+	if filteredPaths[0] != "/images_payments/upload/init" {
+		t.Fatalf("first request path = %s, want %s", filteredPaths[0], "/images_payments/upload/init")
+	}
+	for index := 1; index <= expectedPartRequests; index++ {
+		if filteredPaths[index] != "/images_payments/upload/part" {
+			t.Fatalf("part request path %d = %s, want %s", index, filteredPaths[index], "/images_payments/upload/part")
+		}
+	}
+	if filteredPaths[len(filteredPaths)-1] != "/images_payments/upload/complete" {
+		t.Fatalf("final request path = %s, want %s", filteredPaths[len(filteredPaths)-1], "/images_payments/upload/complete")
 	}
 }
 
@@ -940,7 +1061,7 @@ func TestNewApi_WriteInvalidHTTPHeaders(t *testing.T) {
 	config := &ApiConfig{
 		ApiKey:       "test-key",
 		ApiSignature: "test-signature",
-		ApiEndpoint:  server.URL,
+		ApiEndpoint:  server.URL + "/images",
 		HTTPHeaders:  []string{"InvalidHeaderFormat"}, // Missing colon
 	}
 
