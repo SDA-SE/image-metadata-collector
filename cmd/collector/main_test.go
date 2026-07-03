@@ -40,6 +40,7 @@ func TestNewCommand_HasExpectedFlags(t *testing.T) {
 		"api-key",
 		"api-signature",
 		"api-endpoint",
+		"project",
 		// Don't test "http-header", -> this will result in "flag redefined" errors
 		"annotation-name-base",
 		"annotation-name-scans",

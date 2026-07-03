@@ -18,9 +18,12 @@ type ApiConfig struct {
 	ApiKey       string
 	ApiSignature string
 	ApiEndpoint  string
+	Project      string
 	HTTPHeaders  []string
 	HTTPClient   *http.Client
 }
+
+const apiBaseEndpointSuffix = "/images"
 
 type preparedContent struct {
 	body                []byte
@@ -80,11 +83,15 @@ func NewApi(cfg *ApiConfig) (io.Writer, error) {
 		log.Info().Msg("Api Endpoint not given, do not init ApiStorage")
 		return nil, fmt.Errorf("missing Api Endpoint")
 	}
+	if _, err := cfg.uploadEndpoints(); err != nil {
+		return nil, err
+	}
 
 	return &ApiConfig{
 		ApiKey:       cfg.ApiKey,
 		ApiSignature: cfg.ApiSignature,
 		ApiEndpoint:  cfg.ApiEndpoint,
+		Project:      cfg.Project,
 		HTTPHeaders:  append([]string(nil), cfg.HTTPHeaders...),
 		HTTPClient:   cfg.HTTPClient,
 	}, nil
@@ -188,7 +195,12 @@ func (api ApiConfig) prepareContent(content []byte) (preparedContent, error) {
 }
 
 func (api ApiConfig) uploadDirect(prepared preparedContent) (*http.Response, error) {
-	request, err := http.NewRequest(http.MethodPut, api.ApiEndpoint, bytes.NewReader(prepared.body))
+	endpoints, err := api.uploadEndpoints()
+	if err != nil {
+		return nil, err
+	}
+
+	request, err := http.NewRequest(http.MethodPut, endpoints.direct, bytes.NewReader(prepared.body))
 	if err != nil {
 		return nil, err
 	}
@@ -202,7 +214,7 @@ func (api ApiConfig) uploadDirect(prepared preparedContent) (*http.Response, err
 }
 
 func (api ApiConfig) uploadMultipart(prepared preparedContent) error {
-	endpoints, err := api.multipartEndpoints()
+	endpoints, err := api.uploadEndpoints()
 	if err != nil {
 		return err
 	}
@@ -417,31 +429,39 @@ func (api ApiConfig) httpClient() *http.Client {
 	return &http.Client{}
 }
 
-func (api ApiConfig) multipartEndpoints() (struct {
+func (api ApiConfig) uploadEndpoints() (struct {
+	direct   string
 	init     string
 	part     string
 	complete string
 	abort    string
 }, error) {
-	if !strings.HasSuffix(api.ApiEndpoint, "/images") {
+	if !strings.HasSuffix(api.ApiEndpoint, apiBaseEndpointSuffix) {
 		return struct {
+			direct   string
 			init     string
 			part     string
 			complete string
 			abort    string
-		}{}, fmt.Errorf("api endpoint must end with /images to derive multipart endpoints: %s", api.ApiEndpoint)
+		}{}, fmt.Errorf("api endpoint must end with %s: %s", apiBaseEndpointSuffix, api.ApiEndpoint)
 	}
 
-	base := strings.TrimSuffix(api.ApiEndpoint, "/images")
+	base := strings.TrimSuffix(api.ApiEndpoint, apiBaseEndpointSuffix)
+	target := "images"
+	if api.Project != "" {
+		target += "_" + api.Project
+	}
 	return struct {
+		direct   string
 		init     string
 		part     string
 		complete string
 		abort    string
 	}{
-		init:     base + "/images/upload/init",
-		part:     base + "/images/upload/part",
-		complete: base + "/images/upload/complete",
-		abort:    base + "/images/upload",
+		direct:   base + "/" + target,
+		init:     base + "/" + target + "/upload/init",
+		part:     base + "/" + target + "/upload/part",
+		complete: base + "/" + target + "/upload/complete",
+		abort:    base + "/" + target + "/upload",
 	}, nil
 }
