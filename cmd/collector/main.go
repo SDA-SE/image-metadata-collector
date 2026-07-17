@@ -78,6 +78,8 @@ func newCommand() *cobra.Command {
 				zerolog.SetGlobalLevel(zerolog.DebugLevel)
 			}
 
+			log.Info().Interface("config", cfg.Redacted()).Msg("Loaded configuration")
+
 			return nil
 		},
 		Run: func(cmd *cobra.Command, args []string) {
