@@ -39,6 +39,11 @@ func main() {
 }
 
 func newCommand() *cobra.Command {
+	cmd, _ := newCommandWithConfig()
+	return cmd
+}
+
+func newCommandWithConfig() (*cobra.Command, *config.Config) {
 	cfg := &config.Config{}
 	var ownersFlag string
 	var notificationsFlag string
@@ -115,9 +120,7 @@ func newCommand() *cobra.Command {
 	c.PersistentFlags().StringVar(&cfg.Project, "project", "", "Optional project suffix for API uploads. When set with --storage api, uploads target 'images_<project>' instead of 'images'")
 	// HTTP Headers
 	// use like: --http-header "Authorization:Bearer token" --http-header "Content-Type:application/json"
-	if pflag.Lookup("http-header") == nil {
-		pflag.StringArrayVar(&cfg.HTTPHeaders, "http-header", []string{}, "List of HTTP headers in 'key:value' format. Repeat flag for multiple headers.")
-	}
+	c.PersistentFlags().StringArrayVar(&cfg.HTTPHeaders, "http-header", []string{}, "List of HTTP headers in 'key:value' format. Repeat flag for multiple headers.")
 	// Annotation Key/Name Config
 	c.PersistentFlags().StringVar(&cfg.Base, "annotation-name-base", "sdase.org/", "Annotation name for general annotations")
 	c.PersistentFlags().StringVar(&cfg.Scans, "annotation-name-scans", "clusterscanner.sdase.org/", "Annotation name for scan related annotations")
@@ -150,7 +153,7 @@ func newCommand() *cobra.Command {
 	c.PersistentFlags().StringVar(&cfg.NamespaceFilterNegated, "negated_namespace_filter", "", "Default negated namespace filter to use")
 
 	c.PersistentFlags().AddGoFlagSet(flag.CommandLine)
-	return c
+	return c, cfg
 }
 
 // initializeConfig reads in ENV variables if set.
@@ -170,18 +173,57 @@ func initializeConfig(cmd *cobra.Command) error {
 
 // bindFlags binds each cobra flag to its associated viper configuration
 func bindFlags(cmd *cobra.Command, v *viper.Viper) {
-	cmd.Flags().VisitAll(func(f *pflag.Flag) {
-		configName := f.Name
-
-		if !f.Changed && v.IsSet(configName) {
-			val := v.Get(configName)
-			err := cmd.Flags().Set(f.Name, fmt.Sprintf("%v", val))
-			if err != nil {
-				log.Fatal().Stack().Err(err).Msg("Could not set flag " + f.Name)
+	visited := map[string]struct{}{}
+	bindFlagSet := func(flags *pflag.FlagSet) {
+		flags.VisitAll(func(f *pflag.Flag) {
+			if _, seen := visited[f.Name]; seen {
+				return
 			}
+			visited[f.Name] = struct{}{}
 
+			if !f.Changed && v.IsSet(f.Name) {
+				if err := setFlagValueFromViper(flags, f, v); err != nil {
+					log.Fatal().Stack().Err(err).Msg("Could not set flag " + f.Name)
+				}
+			}
+		})
+	}
+
+	bindFlagSet(cmd.PersistentFlags())
+	bindFlagSet(cmd.Flags())
+}
+
+func setFlagValueFromViper(flags *pflag.FlagSet, flag *pflag.Flag, v *viper.Viper) error {
+	if flag.Name == "http-header" {
+		return setHTTPHeaderValuesFromViper(flags, flag.Name, v.GetString(flag.Name))
+	}
+
+	return flags.Set(flag.Name, fmt.Sprintf("%v", v.Get(flag.Name)))
+}
+
+func setHTTPHeaderValuesFromViper(flags *pflag.FlagSet, flagName string, value string) error {
+	for _, header := range normalizeHTTPHeaderEnvValue(value) {
+		if err := flags.Set(flagName, header); err != nil {
+			return err
 		}
-	})
+	}
+
+	return nil
+}
+
+func normalizeHTTPHeaderEnvValue(value string) []string {
+	parts := strings.Split(value, ",")
+	headers := make([]string, 0, len(parts))
+
+	for _, part := range parts {
+		header := strings.TrimSpace(part)
+		if header == "" {
+			continue
+		}
+		headers = append(headers, header)
+	}
+
+	return headers
 }
 
 // run starts the collector and metrics endpoint

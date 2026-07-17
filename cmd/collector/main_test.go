@@ -1,7 +1,11 @@
 package main
 
 import (
+	"reflect"
 	"testing"
+
+	"github.com/SDA-SE/image-metadata-collector/internal/config"
+	"github.com/spf13/cobra"
 )
 
 func TestNewCommand_ReturnsCommand(t *testing.T) {
@@ -41,7 +45,7 @@ func TestNewCommand_HasExpectedFlags(t *testing.T) {
 		"api-signature",
 		"api-endpoint",
 		"project",
-		// Don't test "http-header", -> this will result in "flag redefined" errors
+		"http-header",
 		"annotation-name-base",
 		"annotation-name-scans",
 		"annotation-name-contact",
@@ -237,4 +241,68 @@ func TestNewCommand_ImageFilterFlag(t *testing.T) {
 	if err := cmd.Flags().Set("image-filter", "mock-service,mongo"); err != nil {
 		t.Errorf("unexpected error setting image-filter: %v", err)
 	}
+}
+
+func TestNewCommand_HTTPHeadersFromEnvSingleValue(t *testing.T) {
+	t.Setenv("COLLECTOR_HTTP_HEADER", "Authorization:Bearer token")
+
+	_, cfg := runPersistentPreRun(t)
+
+	expected := []string{"Authorization:Bearer token"}
+	if !reflect.DeepEqual(cfg.HTTPHeaders, expected) {
+		t.Fatalf("expected HTTPHeaders=%v, got %v", expected, cfg.HTTPHeaders)
+	}
+}
+
+func TestNewCommand_HTTPHeadersFromEnvMultipleValues(t *testing.T) {
+	t.Setenv("COLLECTOR_HTTP_HEADER", "Authorization:Bearer token,Content-Type:application/json")
+
+	_, cfg := runPersistentPreRun(t)
+
+	expected := []string{"Authorization:Bearer token", "Content-Type:application/json"}
+	if !reflect.DeepEqual(cfg.HTTPHeaders, expected) {
+		t.Fatalf("expected HTTPHeaders=%v, got %v", expected, cfg.HTTPHeaders)
+	}
+}
+
+func TestNewCommand_HTTPHeadersFromEnvTrimsWhitespace(t *testing.T) {
+	t.Setenv("COLLECTOR_HTTP_HEADER", "Authorization:Bearer token, Content-Type:application/json")
+
+	_, cfg := runPersistentPreRun(t)
+
+	expected := []string{"Authorization:Bearer token", "Content-Type:application/json"}
+	if !reflect.DeepEqual(cfg.HTTPHeaders, expected) {
+		t.Fatalf("expected HTTPHeaders=%v, got %v", expected, cfg.HTTPHeaders)
+	}
+}
+
+func TestNewCommand_HTTPHeadersFromCLIRepeatedFlags(t *testing.T) {
+	cmd, cfg := newCommandWithConfig()
+
+	if err := cmd.PersistentFlags().Set("http-header", "Authorization:Bearer token"); err != nil {
+		t.Fatalf("failed to set first http-header flag: %v", err)
+	}
+	if err := cmd.PersistentFlags().Set("http-header", "Content-Type:application/json"); err != nil {
+		t.Fatalf("failed to set second http-header flag: %v", err)
+	}
+
+	if err := cmd.PersistentPreRunE(cmd, []string{}); err != nil {
+		t.Fatalf("unexpected error running pre-run: %v", err)
+	}
+
+	expected := []string{"Authorization:Bearer token", "Content-Type:application/json"}
+	if !reflect.DeepEqual(cfg.HTTPHeaders, expected) {
+		t.Fatalf("expected HTTPHeaders=%v, got %v", expected, cfg.HTTPHeaders)
+	}
+}
+
+func runPersistentPreRun(t *testing.T) (*cobra.Command, *config.Config) {
+	t.Helper()
+
+	cmd, cfg := newCommandWithConfig()
+	if err := cmd.PersistentPreRunE(cmd, []string{}); err != nil {
+		t.Fatalf("unexpected error running pre-run: %v", err)
+	}
+
+	return cmd, cfg
 }
