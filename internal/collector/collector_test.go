@@ -440,6 +440,55 @@ func TestCleanCollectorImageImageNameAndID(t *testing.T) {
 	}
 }
 
+func TestCleanCollectorImageIdNormalizesRawDigests(t *testing.T) {
+	digest := "edfd7d73e158dce44e625a79bf25e50ea0f1e3366022e57a4b7f327eeff4f59e"
+	testCases := []struct {
+		name            string
+		image           string
+		imageID         string
+		expectedImageID string
+	}{
+		{
+			name:            "bare digest with tagged image",
+			image:           "registry.example/team/backend:1.2.3",
+			imageID:         digest,
+			expectedImageID: "registry.example/team/backend@sha256:" + digest,
+		},
+		{
+			name:            "sha256 digest with registry port",
+			image:           "registry.example:5000/team/backend:1.2.3",
+			imageID:         "sha256:" + digest,
+			expectedImageID: "registry.example:5000/team/backend@sha256:" + digest,
+		},
+		{
+			name:            "bare digest with digest image reference",
+			image:           "registry.example/team/backend@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+			imageID:         digest,
+			expectedImageID: "registry.example/team/backend@sha256:" + digest,
+		},
+		{
+			name:            "fully qualified image ID remains unchanged",
+			image:           "registry.example/team/backend:1.2.3",
+			imageID:         "registry.example/team/backend@sha256:" + digest,
+			expectedImageID: "registry.example/team/backend@sha256:" + digest,
+		},
+		{
+			name:            "fully qualified image ID with tag and digest remains unchanged",
+			image:           "registry.example/team/backend:1.2.3",
+			imageID:         "registry.example/team/backend:1.2.3@sha256:" + digest,
+			expectedImageID: "registry.example/team/backend:1.2.3@sha256:" + digest,
+		},
+	}
+
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			image := CollectorImage{Image: tc.image, ImageId: tc.imageID}
+
+			assert.Equal(t, tc.expectedImageID, cleanCollectorImageId(&image))
+		})
+	}
+}
+
 func TestConvert(t *testing.T) {
 	defaults := CollectorImage{
 		Environment: "myEnv",
