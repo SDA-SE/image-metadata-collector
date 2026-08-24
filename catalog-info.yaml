@@ -24,5 +24,6 @@ spec:
   type: openapi
   lifecycle: experimental
   owner: "group:default/5xx"
+  system: system:default/ClusterImageScanner
   definition:
     $text: ./schema/image-metadata-collector-report.openapi.yaml
