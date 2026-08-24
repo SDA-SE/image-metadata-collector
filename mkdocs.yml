@@ -1,0 +1,14 @@
+site_name: Image Metadata Collector
+site_description: TechDocs for the Image Metadata Collector
+
+nav:
+  - Overview: index.md
+
+plugins:
+  - techdocs-core
+
+markdown_extensions:
+  - admonition
+  - pymdownx.details
+  - pymdownx.superfences
+  - pymdownx.snippets
