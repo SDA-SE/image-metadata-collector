@@ -14,8 +14,6 @@ import (
 
 const SchemaVersionV1 = "v1"
 
-var rawSHA256DigestPattern = regexp.MustCompile(`^[0-9a-fA-F]{64}$`)
-
 type AnnotationNames struct {
 	Base       string
 	Scans      string
@@ -209,38 +207,13 @@ func cleanCollectorImage(ci *CollectorImage, imageFilter *RunConfig) {
 
 func cleanCollectorImageId(ci *CollectorImage) string {
 	imageId := strings.TrimPrefix(ci.ImageId, "docker-pullable://")
+	imageId = strings.TrimPrefix(imageId, "docker://")
+
 	if imageId == "" {
 		log.Info().Msgf("ImageId is empty for image %s (ns %s). Using image name as imageId", ci.Image, ci.Namespace)
 		imageId = ci.Image
 	}
-	if digest, isRawDigest := rawSHA256Digest(imageId); isRawDigest {
-		imageId = imageRepository(ci.Image) + "@sha256:" + digest
-	}
 	return imageId
-}
-
-func rawSHA256Digest(imageId string) (string, bool) {
-	digest := strings.TrimPrefix(imageId, "sha256:")
-	if len(digest) != 64 {
-		return "", false
-	}
-
-	if !rawSHA256DigestPattern.MatchString(digest) {
-		return "", false
-	}
-
-	return digest, true
-}
-
-func imageRepository(image string) string {
-	repository, _, _ := strings.Cut(image, "@")
-	lastSlash := strings.LastIndex(repository, "/")
-	lastColon := strings.LastIndex(repository, ":")
-	if lastColon > lastSlash {
-		return repository[:lastColon]
-	}
-
-	return repository
 }
 
 // images from kubernetes, convert, clean and store them in the storage

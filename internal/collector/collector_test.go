@@ -411,6 +411,17 @@ func TestCleanCollectorImageImageNameAndID(t *testing.T) {
 			expectedImgChanged:   false,
 			expectedImgIdChanged: false,
 		},
+		{
+			name: "CopyImageID",
+			targetImage: CollectorImage{
+				Image:   "quay.io/name:tag",
+				ImageId: "not a valid image ID",
+			},
+			expectedImage:        "quay.io/name:tag",
+			expectedImageId:      "not a valid image ID",
+			expectedImgChanged:   false,
+			expectedImgIdChanged: false,
+		},
 	}
 	runConfig := RunConfig{
 		ImageFilter: []string{},
@@ -440,7 +451,7 @@ func TestCleanCollectorImageImageNameAndID(t *testing.T) {
 	}
 }
 
-func TestCleanCollectorImageIdNormalizesRawDigests(t *testing.T) {
+func TestCleanCollectorImageIdUsesImageForRawDigests(t *testing.T) {
 	digest := "edfd7d73e158dce44e625a79bf25e50ea0f1e3366022e57a4b7f327eeff4f59e"
 	testCases := []struct {
 		name            string
@@ -452,24 +463,18 @@ func TestCleanCollectorImageIdNormalizesRawDigests(t *testing.T) {
 			name:            "bare digest with tagged image",
 			image:           "registry.example/team/backend:1.2.3",
 			imageID:         digest,
-			expectedImageID: "registry.example/team/backend@sha256:" + digest,
+			expectedImageID: digest,
 		},
 		{
 			name:            "sha256 digest with registry port",
 			image:           "registry.example:5000/team/backend:1.2.3",
 			imageID:         "sha256:" + digest,
-			expectedImageID: "registry.example:5000/team/backend@sha256:" + digest,
-		},
-		{
-			name:            "bare digest with digest image reference",
-			image:           "registry.example/team/backend@sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
-			imageID:         digest,
-			expectedImageID: "registry.example/team/backend@sha256:" + digest,
+			expectedImageID: "sha256:" + digest,
 		},
 		{
 			name:            "fully qualified image ID remains unchanged",
 			image:           "registry.example/team/backend:1.2.3",
-			imageID:         "registry.example/team/backend@sha256:" + digest,
+			imageID:         "docker-pullable://"+"registry.example/team/backend@sha256:" + digest,
 			expectedImageID: "registry.example/team/backend@sha256:" + digest,
 		},
 		{
