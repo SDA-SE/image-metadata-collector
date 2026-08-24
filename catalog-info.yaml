@@ -1,7 +1,7 @@
 apiVersion: backstage.io/v1alpha1
 kind: Component
 metadata:
-  name: scanyr
+  name: image-metadata-collector
   title: Image Metadata Collector
   description: Scheduled Kubernetes workload inventory collector that generates versioned image metadata reports for downstream security scanning.
   annotations:
