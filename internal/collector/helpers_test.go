@@ -2,9 +2,29 @@ package collector
 
 import (
 	"encoding/json"
+	"reflect"
 	"sort"
 	"testing"
 )
+
+func TestGetLabelsWithDefaults(t *testing.T) {
+	defaults := map[string]string{"app.kubernetes.io/part-of": "platform", "cost-center": "shared"}
+	tags := map[string]string{"app.kubernetes.io/part-of": "payments", "unconfigured": "ignored"}
+
+	got := GetLabelsWithDefaults(tags, defaults)
+	want := map[string]string{"app.kubernetes.io/part-of": "payments", "cost-center": "shared"}
+	if !reflect.DeepEqual(got, want) {
+		t.Errorf("expected labels %v, got %v", want, got)
+	}
+
+	if got := GetLabelsWithDefaults(nil, map[string]string{}); !reflect.DeepEqual(got, map[string]string{}) {
+		t.Errorf("expected configured empty labels, got %v", got)
+	}
+
+	if got := GetLabelsWithDefaults(nil, nil); got != nil {
+		t.Errorf("expected nil labels without defaults, got %v", got)
+	}
+}
 
 var testMap = map[string]string{
 	"str":          "some-string",

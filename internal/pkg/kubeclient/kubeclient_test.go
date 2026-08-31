@@ -193,51 +193,44 @@ func TestGetImages(t *testing.T) {
 			Image:         "registry/app@sha256:abc",
 			ImageId:       "docker-pullable://registry/app@sha256:abc",
 			NamespaceName: "team-a",
-			Labels:        map[string]string{"ns-label": "ns", "workload": "namespace"},
-			Annotations:   map[string]string{"ns-ann": "ns", "pod-ann": "1"},
+			Labels:        map[string]string{"ns-ann": "ns", "ns-label": "ns", "pod-ann": "1", "workload": "pod"},
 			ImageType:     ImageTypeOther,
 		},
 		{
 			Image:         "registry/cron-init:v1",
 			NamespaceName: "team-a",
-			Labels:        map[string]string{"ns-label": "ns", "workload": "namespace"},
-			Annotations:   map[string]string{"cron-ann": "cron", "ns-ann": "ns"},
+			Labels:        map[string]string{"cron-ann": "cron", "ns-ann": "ns", "ns-label": "ns", "workload": "namespace"},
 			ImageType:     ImageTypeInitContainer,
 		},
 		{
 			Image:         "registry/cron:v1",
 			NamespaceName: "team-a",
-			Labels:        map[string]string{"ns-label": "ns", "workload": "namespace"},
-			Annotations:   map[string]string{"cron-ann": "cron", "ns-ann": "ns"},
+			Labels:        map[string]string{"cron-ann": "cron", "ns-ann": "ns", "ns-label": "ns", "workload": "namespace"},
 			ImageType:     ImageTypeCronJob,
 		},
 		{
 			Image:         "registry/init@sha256:def",
 			ImageId:       "docker-pullable://registry/init@sha256:def",
 			NamespaceName: "team-a",
-			Labels:        map[string]string{"ns-label": "ns", "workload": "namespace"},
-			Annotations:   map[string]string{"ns-ann": "ns", "pod-ann": "1"},
+			Labels:        map[string]string{"ns-ann": "ns", "ns-label": "ns", "pod-ann": "1", "workload": "pod"},
 			ImageType:     ImageTypeInitContainer,
 		},
 		{
 			Image:         "registry/job-init:v1",
 			NamespaceName: "team-a",
-			Labels:        map[string]string{"job-label": "job", "ns-label": "ns", "workload": "namespace"},
-			Annotations:   map[string]string{"ns-ann": "ns"},
+			Labels:        map[string]string{"job-label": "job", "ns-ann": "ns", "ns-label": "ns", "workload": "namespace"},
 			ImageType:     ImageTypeInitContainer,
 		},
 		{
 			Image:         "registry/job:v1",
 			NamespaceName: "team-a",
-			Labels:        map[string]string{"job-label": "job", "ns-label": "ns", "workload": "namespace"},
-			Annotations:   map[string]string{"ns-ann": "ns"},
+			Labels:        map[string]string{"job-label": "job", "ns-ann": "ns", "ns-label": "ns", "workload": "namespace"},
 			ImageType:     ImageTypeJob,
 		},
 		{
 			Image:         "registry/sidecar:v1",
 			NamespaceName: "team-a",
-			Labels:        map[string]string{"ns-label": "ns", "workload": "namespace"},
-			Annotations:   map[string]string{"ns-ann": "ns", "pod-ann": "1"},
+			Labels:        map[string]string{"ns-ann": "ns", "ns-label": "ns", "pod-ann": "1", "workload": "pod"},
 			ImageType:     ImageTypeOther,
 		},
 	}
@@ -246,6 +239,26 @@ func TestGetImages(t *testing.T) {
 
 	if !reflect.DeepEqual(expected, *images) {
 		t.Fatalf("unexpected images: %#v", *images)
+	}
+}
+
+func TestMergeMetadataPriority(t *testing.T) {
+	metadata := mergeMetadata(
+		map[string]string{"from-workload-label": "workload-label", "shared": "workload-label"},
+		map[string]string{"from-workload-annotation": "workload-annotation", "shared": "workload-annotation"},
+		map[string]string{"from-namespace-label": "namespace-label", "shared": "namespace-label"},
+		map[string]string{"from-namespace-annotation": "namespace-annotation", "shared": "namespace-annotation"},
+	)
+
+	expected := map[string]string{
+		"from-namespace-annotation": "namespace-annotation",
+		"from-namespace-label":      "namespace-label",
+		"from-workload-annotation":  "workload-annotation",
+		"from-workload-label":       "workload-label",
+		"shared":                    "workload-annotation",
+	}
+	if !reflect.DeepEqual(metadata, expected) {
+		t.Fatalf("expected metadata %v, got %v", expected, metadata)
 	}
 }
 

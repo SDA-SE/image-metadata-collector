@@ -45,9 +45,11 @@ func newCommand() *cobra.Command {
 
 func newCommandWithConfig() (*cobra.Command, *config.Config) {
 	cfg := &config.Config{}
+	cfg.Labels = map[string]string{}
 	var ownersFlag string
 	var notificationsFlag string
 	var imageNotificationRulesFlag string
+	var labelsFlag string
 
 	c := &cobra.Command{
 		Use:   AppName,
@@ -76,6 +78,14 @@ func newCommandWithConfig() (*cobra.Command, *config.Config) {
 				}
 				if err := collector.ValidateImageNotificationRules(cfg.ImageNotificationRules); err != nil {
 					return fmt.Errorf("could not validate image notification rules flag: %w", err)
+				}
+			}
+			if labelsFlag != "" {
+				if err := json.Unmarshal([]byte(labelsFlag), &cfg.Labels); err != nil {
+					return fmt.Errorf("could not parse labels flag: %w", err)
+				}
+				if cfg.Labels == nil {
+					cfg.Labels = map[string]string{}
 				}
 			}
 			// Set the logging level based on the debug flag
@@ -148,6 +158,7 @@ func newCommandWithConfig() (*cobra.Command, *config.Config) {
 	c.PersistentFlags().StringVar(&cfg.Product, "product", "", "Default product to use")
 	c.PersistentFlags().StringVar(&ownersFlag, "owners", "", "List of owners as JSON array e.g. '[{\"role\":\"admin\",\"uuid\":\"1234\",\"name\":\"Alice\"}]'")
 	c.PersistentFlags().StringVar(&notificationsFlag, "notifications", "", "Notification as JSON object array e.g. '{\"slack\":[\"channel1\",\"channel2\"],\"emails\":[\"admin@c.de\",\"super-admin+devops@c.de\"],\"ms_teams\":[\"1234689745631@teams.microsoft.ms\"]}'")
+	c.PersistentFlags().StringVar(&labelsFlag, "labels", "", "Default report labels as a JSON object, e.g. '{\"app.kubernetes.io/part-of\":\"platform\",\"cost-center\":\"shared\"}'. Configured label keys are included in every report item; Namespace, Pod, Job, or CronJob metadata overrides their values.")
 	c.PersistentFlags().StringVar(&imageNotificationRulesFlag, "image-notification-rules", "", "Ordered image notification rules as JSON array e.g. '[{\"image\":\"^ghcr\\\\.io/acme/private-app:.*$\",\"notifications\":{\"slack\":[\"#team-a\"],\"emails\":[\"team-a@example.com\"],\"ms_teams\":[\"team-a-channel\"]}}]'. Prefix the regex with '!' to match all images that do not match it. First match wins; non-empty notifications replace existing notifications, empty notifications keep existing notifications and stop further rule processing.")
 	c.PersistentFlags().StringVar(&cfg.NamespaceFilter, "namespace-filter", "", "Default namespace filter to use")
 	c.PersistentFlags().StringVar(&cfg.NamespaceFilterNegated, "negated_namespace_filter", "", "Default negated namespace filter to use")

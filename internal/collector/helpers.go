@@ -10,6 +10,24 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// GetLabelsWithDefaults returns configured report labels, replacing each configured
+// default value when Kubernetes metadata provides a non-empty value for that key.
+func GetLabelsWithDefaults(tags map[string]string, defaults map[string]string) map[string]string {
+	if defaults == nil {
+		return nil
+	}
+
+	labels := make(map[string]string, len(defaults))
+	for key, defaultValue := range defaults {
+		labels[key] = defaultValue
+		if value, ok := tags[key]; ok && value != "" {
+			labels[key] = value
+		}
+	}
+
+	return labels
+}
+
 // GetOrDefaultBool returns the value of the given name from the map m or the default value if it doesn't exist.
 func GetOrDefaultBool(m map[string]string, name string, default_ bool) bool {
 	var value bool

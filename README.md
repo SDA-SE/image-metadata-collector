@@ -102,6 +102,30 @@ If a matching image regex rule has an empty `notifications` object, the collecto
 If no metadata notifications are configured, the collector falls back to `--notifications`.
 The collector uses Go's RE2 regex engine, so `!regex` is the supported way to express "all except" matching.
 
+### Report labels
+
+`--labels` defines the labels that are emitted in every image report object, together with their default values. Its value is a JSON object whose keys are Kubernetes label names and whose values are the fallback values. The default is an empty object (`{}`), so no additional labels are emitted unless configured.
+
+For each configured key, the collector uses the configured value unless the same key is present with a non-empty value on the Namespace, Pod, Job, or CronJob. The strict priority is: default, Namespace label, Namespace annotation, workload label, then workload annotation. Labels not listed in `--labels` are deliberately not copied to the report.
+
+```bash
+go run cmd/collector/main.go \
+  --storage fs \
+  --environment-name test \
+  --labels '{"app.kubernetes.io/part-of":"platform","cost-center":"shared"}'
+```
+
+With this configuration, each report entry, including API uploads to `images` or project-specific `images_<project>`, contains:
+
+```json
+"labels": {
+  "app.kubernetes.io/part-of": "platform",
+  "cost-center": "shared"
+}
+```
+
+If a Pod has `app.kubernetes.io/part-of: payments`, that entry becomes `"payments"`; `cost-center` remains `"shared"` unless it is also set in the Namespace or workload metadata. The setting can also be provided through `IMAGE_METADATA_COLLECTOR_LABELS` with the same JSON object.
+
 ## API upload behavior
 When `--storage api` is used, the collector uploads the generated image report to the configured `--api-endpoint`.
 `--filename` does not affect API uploads; it still only applies to `fs`, `s3`, and `git` storage.
