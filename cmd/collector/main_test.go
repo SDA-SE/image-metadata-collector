@@ -28,6 +28,7 @@ func TestNewCommand_HasExpectedFlags(t *testing.T) {
 		"master-url",
 		"owners",
 		"notifications",
+		"labels",
 		"image-notification-rules",
 		"storage",
 		"filename",
@@ -70,6 +71,7 @@ func TestNewCommand_HasExpectedFlags(t *testing.T) {
 		"product",
 		"owners",
 		"notifications",
+		"labels",
 		"image-notification-rules",
 		"namespace-filter",
 		"negated_namespace_filter",
@@ -114,6 +116,33 @@ func TestNewCommand_ValidOwnersFlag(t *testing.T) {
 	preRunE, _ := cmd.PersistentPreRunE, cmd.PersistentFlags().Set("owners", `[{"role": "admin", "uuid": "1234", "name": "Alice"}]`)
 	if err := preRunE(cmd, []string{}); err != nil {
 		t.Errorf("unexpected error with valid owners flag: %v", err)
+	}
+}
+
+func TestNewCommand_LabelsFlag(t *testing.T) {
+	cmd, cfg := newCommandWithConfig()
+	if err := cmd.PersistentFlags().Set("labels", `{"app.kubernetes.io/part-of":"platform","cost-center":"shared"}`); err != nil {
+		t.Fatalf("failed to set labels flag: %v", err)
+	}
+
+	if err := cmd.PersistentPreRunE(cmd, []string{}); err != nil {
+		t.Fatalf("unexpected error with valid labels flag: %v", err)
+	}
+
+	expected := map[string]string{"app.kubernetes.io/part-of": "platform", "cost-center": "shared"}
+	if !reflect.DeepEqual(cfg.Labels, expected) {
+		t.Errorf("expected labels %v, got %v", expected, cfg.Labels)
+	}
+}
+
+func TestNewCommand_InvalidLabelsFlag(t *testing.T) {
+	cmd := newCommand()
+	if err := cmd.PersistentFlags().Set("labels", "not-valid-json"); err != nil {
+		t.Fatalf("failed to set labels flag: %v", err)
+	}
+
+	if err := cmd.PersistentPreRunE(cmd, []string{}); err == nil {
+		t.Error("expected error for invalid labels JSON, got nil")
 	}
 }
 

@@ -222,9 +222,8 @@ func (c *Client) GetImages(namespaces *[]Namespace) (*[]Image, error) {
 			return nil, err
 		}
 		for _, pod := range pods.Items {
-			labels := mergeMaps(pod.Metadata.Labels, namespace.Labels)
-			annotations := mergeMaps(pod.Metadata.Annotations, namespace.Annotations)
-			images = append(images, extractPodImages(namespace, labels, annotations, pod)...)
+			metadata := mergeMetadata(pod.Metadata.Labels, pod.Metadata.Annotations, namespace.Labels, namespace.Annotations)
+			images = append(images, extractPodImages(namespace, metadata, nil, pod)...)
 		}
 
 		jobs, err := c.listJobs(namespace.Name)
@@ -232,9 +231,8 @@ func (c *Client) GetImages(namespaces *[]Namespace) (*[]Image, error) {
 			return nil, err
 		}
 		for _, job := range jobs.Items {
-			labels := mergeMaps(job.Metadata.Labels, namespace.Labels)
-			annotations := mergeMaps(job.Metadata.Annotations, namespace.Annotations)
-			images = append(images, extractTemplateImages(namespace, labels, annotations, job.Spec.Template.Spec, ImageTypeJob)...)
+			metadata := mergeMetadata(job.Metadata.Labels, job.Metadata.Annotations, namespace.Labels, namespace.Annotations)
+			images = append(images, extractTemplateImages(namespace, metadata, nil, job.Spec.Template.Spec, ImageTypeJob)...)
 		}
 
 		cronJobs, err := c.listCronJobs(namespace.Name)
@@ -242,9 +240,8 @@ func (c *Client) GetImages(namespaces *[]Namespace) (*[]Image, error) {
 			return nil, err
 		}
 		for _, cronJob := range cronJobs.Items {
-			labels := mergeMaps(cronJob.Metadata.Labels, namespace.Labels)
-			annotations := mergeMaps(cronJob.Metadata.Annotations, namespace.Annotations)
-			images = append(images, extractTemplateImages(namespace, labels, annotations, cronJob.Spec.JobTemplate.Spec.Template.Spec, ImageTypeCronJob)...)
+			metadata := mergeMetadata(cronJob.Metadata.Labels, cronJob.Metadata.Annotations, namespace.Labels, namespace.Annotations)
+			images = append(images, extractTemplateImages(namespace, metadata, nil, cronJob.Spec.JobTemplate.Spec.Template.Spec, ImageTypeCronJob)...)
 		}
 	}
 
@@ -461,10 +458,27 @@ func mergeMaps(workload map[string]string, namespace map[string]string) map[stri
 	case namespace == nil:
 		return maps.Clone(workload)
 	default:
-		merged := maps.Clone(workload)
-		maps.Copy(merged, namespace)
+		merged := maps.Clone(namespace)
+		maps.Copy(merged, workload)
 		return merged
 	}
+}
+
+func mergeMetadata(workloadLabels, workloadAnnotations, namespaceLabels, namespaceAnnotations map[string]string) map[string]string {
+	namespaceMetadata := mergeLabelsAndAnnotations(namespaceLabels, namespaceAnnotations)
+	workloadMetadata := mergeLabelsAndAnnotations(workloadLabels, workloadAnnotations)
+
+	return mergeMaps(workloadMetadata, namespaceMetadata)
+}
+
+func mergeLabelsAndAnnotations(labels, annotations map[string]string) map[string]string {
+	if labels == nil {
+		return maps.Clone(annotations)
+	}
+
+	metadata := maps.Clone(labels)
+	maps.Copy(metadata, annotations)
+	return metadata
 }
 
 func readTrimmedFile(path string) (string, error) {

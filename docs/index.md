@@ -27,6 +27,12 @@ The CronJob is configured with `concurrencyPolicy: Forbid`, which prevents overl
 
 Configuration is exposed as command-line flags and can also be supplied through environment variables using the `IMAGE_METADATA_COLLECTOR_` prefix; dashes in flag names become underscores. Important configuration paths are Kubernetes connection flags (`--kube-config`, `--kube-context`, `--master-url`), collector defaults such as `--environment-name`, and metadata annotation-name prefixes.
 
+### Report labels
+
+Use `--labels` to define the Kubernetes label keys that belong in every report entry and their fallback values. The flag expects a JSON object, for example `--labels '{"app.kubernetes.io/part-of":"platform","cost-center":"shared"}'`. By default it is `{}`, therefore no additional labels are included in the report.
+
+Each configured label is resolved with this strict priority: configured default, Namespace label, Namespace annotation, Pod/Job/CronJob label, then Pod/Job/CronJob annotation. Only configured keys are emitted; arbitrary workload labels are not copied. The resulting `labels` object is present in every image report item, including reports uploaded to `images` or `images_<project>`.
+
 Select the report destination with `--storage`. Supported values are `api`, `s3`, `git`, `fs`, and `stdout`. `--filename` applies to filesystem, S3, and Git storage; API uploads derive their resource name from `--project` when set.
 
 Notification values are resolved in this order:

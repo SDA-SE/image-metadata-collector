@@ -474,7 +474,7 @@ func TestCleanCollectorImageIdUsesImageForRawDigests(t *testing.T) {
 		{
 			name:            "fully qualified image ID remains unchanged",
 			image:           "registry.example/team/backend:1.2.3",
-			imageID:         "docker-pullable://"+"registry.example/team/backend@sha256:" + digest,
+			imageID:         "docker-pullable://" + "registry.example/team/backend@sha256:" + digest,
 			expectedImageID: "registry.example/team/backend@sha256:" + digest,
 		},
 		{
@@ -1469,6 +1469,7 @@ func TestSchemaContract(t *testing.T) {
 			NamespaceFilter:        "",
 			NamespaceFilterNegated: "",
 			EngagementTags:         []string{"defaultTag"},
+			Labels:                 map[string]string{"app.kubernetes.io/part-of": "platform"},
 			Team:                   "team-a",
 			Owners: []Owner{
 				{Role: "ADMIN", Uuid: "550e8400-e29b-41d4-a716-446655440000", Name: "Alice"},

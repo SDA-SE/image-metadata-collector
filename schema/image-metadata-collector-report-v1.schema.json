@@ -23,6 +23,7 @@
       "namespace_filter",
       "namespace_filter_negated",
       "engagement_tags",
+      "labels",
       "team",
       "owners",
       "notifications",
@@ -89,6 +90,13 @@
         "items": {
           "type": "string"
         }
+      },
+      "labels": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "string"
+        },
+        "description": "Configured report labels with values resolved from Kubernetes metadata or their configured defaults."
       },
       "team": {
         "type": "string"

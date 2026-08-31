@@ -50,16 +50,17 @@ type CollectorImage struct {
 	ImageType     string `json:"image_type"`
 
 	// Fields from annotations and labels
-	Environment            string   `json:"environment"`
-	Product                string   `json:"product"`
-	Description            string   `json:"description"`
-	AppKubernetesIoName    string   `json:"app_kubernetes_io_name"`
-	AppKubernetesIoVersion string   `json:"app_kubernetes_io_version"`
-	ContainerType          string   `json:"container_type"`
-	Skip                   bool     `json:"skip"`
-	NamespaceFilter        string   `json:"namespace_filter"`
-	NamespaceFilterNegated string   `json:"namespace_filter_negated"`
-	EngagementTags         []string `json:"engagement_tags"`
+	Environment            string            `json:"environment"`
+	Product                string            `json:"product"`
+	Description            string            `json:"description"`
+	AppKubernetesIoName    string            `json:"app_kubernetes_io_name"`
+	AppKubernetesIoVersion string            `json:"app_kubernetes_io_version"`
+	ContainerType          string            `json:"container_type"`
+	Skip                   bool              `json:"skip"`
+	NamespaceFilter        string            `json:"namespace_filter"`
+	NamespaceFilterNegated string            `json:"namespace_filter_negated"`
+	EngagementTags         []string          `json:"engagement_tags"`
+	Labels                 map[string]string `json:"labels"`
 
 	Team          string        `json:"team"`
 	Owners        []Owner       `json:"owners"`
@@ -110,6 +111,7 @@ func convertK8ImageToCollectorImage(k8Image kubeclient.Image, defaults *Collecto
 		NamespaceFilter:        GetOrDefaultString(tags, annotationNames.Scans+"namespace-filter", defaults.NamespaceFilter),
 		NamespaceFilterNegated: GetOrDefaultString(tags, annotationNames.Scans+"negated_namespace_filter", defaults.NamespaceFilterNegated),
 		EngagementTags:         GetOrDefaultStringSlice(tags, annotationNames.DefectDojo+"engagement-tags", defaults.EngagementTags),
+		Labels:                 GetLabelsWithDefaults(tags, defaults.Labels),
 
 		Team:          GetOrDefaultString(tags, annotationNames.Contact+"team", defaults.Team),
 		Owners:        GetOrDefaultOwners(tags, annotationNames.Contact+"owners", defaults.Owners),
