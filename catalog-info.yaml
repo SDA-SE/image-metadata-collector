@@ -10,7 +10,7 @@ spec:
   type: service
   owner: "group:default/5xx"
   system: system:default/ClusterImageScanner
-  lifecycle: experimental
+  lifecycle: production
   consumesApis:
     - api:default/image-metadata-collector-upload-contract
 ---
@@ -22,8 +22,8 @@ metadata:
   description: HTTP upload contract for versioned image metadata collector reports.
 spec:
   type: openapi
-  lifecycle: experimental
   owner: "group:default/5xx"
   system: system:default/ClusterImageScanner
+  lifecycle: production
   definition:
     $text: ./schema/image-metadata-collector-report.openapi.yaml
