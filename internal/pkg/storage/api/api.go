@@ -210,7 +210,7 @@ func (api ApiConfig) uploadDirect(prepared preparedContent) (*http.Response, err
 		return nil, err
 	}
 
-	return api.httpClient().Do(request)
+	return api.do(request)
 }
 
 func (api ApiConfig) uploadMultipart(prepared preparedContent) error {
@@ -309,7 +309,7 @@ func (api ApiConfig) uploadPartToS3(url string, content []byte) (string, error) 
 		return "", err
 	}
 
-	res, err := api.httpClient().Do(request)
+	res, err := api.do(request)
 	if err != nil {
 		return "", err
 	}
@@ -346,7 +346,7 @@ func (api ApiConfig) abortMultipartUpload(endpoint string, initResponse multipar
 		return err
 	}
 
-	res, err := api.httpClient().Do(request)
+	res, err := api.do(request)
 	if err != nil {
 		return err
 	}
@@ -379,7 +379,7 @@ func (api ApiConfig) postAPIJSON(endpoint string, payload interface{}, responseT
 		return err
 	}
 
-	res, err := api.httpClient().Do(request)
+	res, err := api.do(request)
 	if err != nil {
 		return err
 	}
@@ -427,6 +427,11 @@ func (api ApiConfig) httpClient() *http.Client {
 	}
 
 	return &http.Client{}
+}
+
+func (api ApiConfig) do(request *http.Request) (*http.Response, error) {
+	log.Info().Str("method", request.Method).Str("url", request.URL.String()).Msg("Sending API request")
+	return api.httpClient().Do(request)
 }
 
 func (api ApiConfig) uploadEndpoints() (struct {

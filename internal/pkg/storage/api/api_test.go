@@ -13,7 +13,58 @@ import (
 	"strconv"
 	"strings"
 	"testing"
+
+	"github.com/rs/zerolog"
+	"github.com/rs/zerolog/log"
 )
+
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (f roundTripperFunc) RoundTrip(request *http.Request) (*http.Response, error) {
+	return f(request)
+}
+
+func TestDoLogsRequestMethodAndURLWithoutBody(t *testing.T) {
+	var logs bytes.Buffer
+	oldLogger := log.Logger
+	log.Logger = zerolog.New(&logs)
+	t.Cleanup(func() { log.Logger = oldLogger })
+
+	api := ApiConfig{
+		HTTPClient: &http.Client{Transport: roundTripperFunc(func(request *http.Request) (*http.Response, error) {
+			return &http.Response{
+				StatusCode: http.StatusOK,
+				Body:       io.NopCloser(strings.NewReader("")),
+				Request:    request,
+			}, nil
+		})},
+	}
+	request, err := http.NewRequest(http.MethodPut, "https://example.com/upload?signature=abc", strings.NewReader("sensitive-body"))
+	if err != nil {
+		t.Fatalf("NewRequest() error = %v", err)
+	}
+
+	response, err := api.do(request)
+	if err != nil {
+		t.Fatalf("do() error = %v", err)
+	}
+	t.Cleanup(func() {
+		if err := response.Body.Close(); err != nil {
+			t.Errorf("response body close error = %v", err)
+		}
+	})
+
+	logOutput := logs.String()
+	if !strings.Contains(logOutput, http.MethodPut) {
+		t.Errorf("log output = %q, want method %q", logOutput, http.MethodPut)
+	}
+	if !strings.Contains(logOutput, request.URL.String()) {
+		t.Errorf("log output = %q, want URL %q", logOutput, request.URL.String())
+	}
+	if strings.Contains(logOutput, "sensitive-body") {
+		t.Errorf("log output must not contain request body: %q", logOutput)
+	}
+}
 
 func TestCompressJSONBytes(t *testing.T) {
 	tests := []struct {
