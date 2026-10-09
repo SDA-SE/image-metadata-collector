@@ -13,5 +13,6 @@ type Config struct {
 	storage.StorageConfig
 	collector.RunConfig
 
-	Debug bool
+	Debug             bool
+	IstioQuitEndpoint string
 }

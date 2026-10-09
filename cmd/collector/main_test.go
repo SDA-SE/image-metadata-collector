@@ -1,6 +1,8 @@
 package main
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"reflect"
 	"testing"
 
@@ -26,6 +28,7 @@ func TestNewCommand_HasExpectedFlags(t *testing.T) {
 		"kube-config",
 		"kube-context",
 		"master-url",
+		"istio-quit-endpoint",
 		"owners",
 		"notifications",
 		"labels",
@@ -107,6 +110,37 @@ func TestNewCommand_DefaultFlagValues(t *testing.T) {
 	masterUrlFlag := cmd.PersistentFlags().Lookup("master-url")
 	if masterUrlFlag.DefValue != "" {
 		t.Errorf("expected master-url default='', got %s", masterUrlFlag.DefValue)
+	}
+}
+
+func TestSendQuitQuitQuit_PostsToConfiguredEndpoint(t *testing.T) {
+	requestReceived := make(chan struct{}, 1)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			t.Errorf("expected method %s, got %s", http.MethodPost, r.Method)
+		}
+		if r.URL.Path != "/quitquitquit" {
+			t.Errorf("expected path /quitquitquit, got %s", r.URL.Path)
+		}
+		requestReceived <- struct{}{}
+		w.WriteHeader(http.StatusOK)
+	}))
+	defer server.Close()
+
+	if err := sendQuitQuitQuit(server.URL + "/quitquitquit"); err != nil {
+		t.Fatalf("unexpected error sending QUITQUITQUIT: %v", err)
+	}
+
+	select {
+	case <-requestReceived:
+	default:
+		t.Fatal("expected QUITQUITQUIT request")
+	}
+}
+
+func TestSendQuitQuitQuit_SkipsEmptyEndpoint(t *testing.T) {
+	if err := sendQuitQuitQuit(""); err != nil {
+		t.Fatalf("expected empty endpoint to be skipped, got %v", err)
 	}
 }
 

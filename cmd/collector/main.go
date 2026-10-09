@@ -4,7 +4,9 @@ import (
 	"encoding/json"
 	"flag"
 	"fmt"
+	"net/http"
 	"strings"
+	"time"
 
 	"github.com/SDA-SE/image-metadata-collector/internal/collector"
 	"github.com/SDA-SE/image-metadata-collector/internal/config"
@@ -18,14 +20,12 @@ import (
 	"github.com/spf13/viper"
 )
 
-const AppName = "collector"
-
-const ShortDescription = "Collect images"
-const LongDescription = `Image Metadata Collector is a tool that will scan
-	'Namespace's,
-	and 'Pod's
-	for image and team information.
-	`
+const (
+	AppName          = "collector"
+	ShortDescription = "Collect images"
+	LongDescription  = `Image Metadata Collector is a tool that will scan 'Namespace's and 'Pod's for image and team information.`
+	IstioQuitTimeout = 5 * time.Second
+)
 
 func main() {
 	zerolog.TimeFieldFormat = zerolog.TimeFormatUnix
@@ -110,6 +110,7 @@ func newCommandWithConfig() (*cobra.Command, *config.Config) {
 	c.PersistentFlags().StringVar(&cfg.ConfigFile, "kube-config", "", "absolute path to the kubeconfig file")
 	c.PersistentFlags().StringVar(&cfg.Context, "kube-context", "", "The context to use to talk to the Kubernetes apiserver. If unset defaults to whatever your current-context is (kubectl config current-context)")
 	c.PersistentFlags().StringVar(&cfg.MasterUrl, "master-url", "", "URL of the API server")
+	c.PersistentFlags().StringVar(&cfg.IstioQuitEndpoint, "istio-quit-endpoint", "", "URL for the Istio sidecar QUITQUITQUIT endpoint")
 
 	// Output/Storage Config
 	c.PersistentFlags().StringVar(&cfg.StorageFlag, "storage", "api", "Write output to storage location [api, s3, git, local fs]")
@@ -222,6 +223,27 @@ func setHTTPHeaderValuesFromViper(flags *pflag.FlagSet, flagName string, value s
 	return nil
 }
 
+func sendQuitQuitQuit(endpoint string) error {
+	if endpoint == "" {
+		return nil
+	}
+
+	client := &http.Client{Timeout: IstioQuitTimeout}
+	resp, err := client.Post(endpoint, "text/plain", nil)
+	if err != nil {
+		return fmt.Errorf("send QUITQUITQUIT to Istio sidecar: %w", err)
+	}
+	defer func() {
+		_ = resp.Body.Close()
+	}()
+
+	if resp.StatusCode != http.StatusOK {
+		return fmt.Errorf("QUITQUITQUIT returned status %d", resp.StatusCode)
+	}
+
+	return nil
+}
+
 func normalizeHTTPHeaderEnvValue(value string) []string {
 	parts := strings.Split(value, ",")
 	headers := make([]string, 0, len(parts))
@@ -274,4 +296,8 @@ func run(cfg *config.Config) {
 	}
 	log.Info().Msg("Images collected and stored")
 	log.Debug().Interface("storage", storage).Msg("using storage")
+
+	if err := sendQuitQuitQuit(cfg.IstioQuitEndpoint); err != nil {
+		log.Fatal().Err(err).Msg("Could not stop Istio sidecar")
+	}
 }
